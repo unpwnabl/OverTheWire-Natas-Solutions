@@ -533,7 +533,7 @@ $d = array( "showpassword" => "yes", "bgcolor" => "#ffffff");
 echo base64_encode(xor_encrypt(json_encode($d)));
 ?>
 ```
-The new cookie generated is `ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`. This cookie has the option to sho the password, so when we add it to the request header like `data=ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`, we get the solution:
+The new cookie generated is `ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`. This cookie has the option to show the password, so when we add it to the request header like `data=ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`, we get the solution:
 ```html
 <html>
     <head>
