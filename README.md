@@ -1,3 +1,4 @@
+
 # OverTheWire Natas Solutions
 
 This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 33 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. <br>
@@ -18,8 +19,9 @@ Please use these as hints to solve the challenges yourself. Do not use them to c
 - [Level 9](#level9) 
 - [Level 10](#level10)
 - [Level 11](#level11) 
+- [Level 12](#level12) 
 
-### Level 0 <a name="level0"></a>
+## Level 0 <a name="level0"></a>
 Level 0 is pretty straight-foward. After logging into the level using the password `natas0`, we get the following screen:
 
 ![Level 0](/imgs/lvl0/screenshot.png)
@@ -41,7 +43,7 @@ Viewing the page source results in us finding the password for the next level:
 </html>
 ```
 
-### Level 1 <a name="level1"></a>
+## Level 1 <a name="level1"></a>
 Landing on the site, we see this:
 
 ![Level 1](/imgs/lvl1/screenshot.png)
@@ -63,7 +65,7 @@ Since we can't see the source code by simply right-clicking, there's a keyboard 
 </html>
 ```
 
-### Level 2 <a name="level2"></a>
+## Level 2 <a name="level2"></a>
 Landing on the site, we see this:
 
 ![Level 2](/imgs/lvl2/screenshot.png)
@@ -98,7 +100,7 @@ eve:zo4mJWyNj2
 mallory:9urtcpzBmH
 ```
 
-### Level 3 <a name="level3"></a>
+## Level 3 <a name="level3"></a>
 Landing on the site, we see this:
 
 ![Level 3](/imgs/lvl2/screenshot.png)
@@ -136,7 +138,7 @@ Clicking the file gives us the password to the next level:
 natas4:****
 ```
 
-### Level 4 <a name="level4"></a>
+## Level 4 <a name="level4"></a>
 Landing on the site, we see this:
 
 ![Level 4](/imgs/lvl4/screenshot.png)
@@ -169,7 +171,7 @@ Once done, we can send it, and get a response. Viewing it raw, we get the soluti
 </html>
 ```
 
-### Level 5 <a name="level5"></a>
+## Level 5 <a name="level5"></a>
 Landing on the site, we see this:
 
 ![Level 5](/imgs/lvl5/screenshot.png)
@@ -196,7 +198,7 @@ Now, doing the same thing as before, we can edit and resend the header, adding a
 </html>
 ```
 
-### Level 6 <a name="level6"></a>
+## Level 6 <a name="level6"></a>
 Landing on the site, we see this:
 
 ![Level 6](/imgs/lvl6/screenshot.png)
@@ -245,7 +247,7 @@ Now that we know the secret, we can just go back to the main page, and input it.
 </html>
 ```
 
-### Level 7 <a name="level7"></a>
+## Level 7 <a name="level7"></a>
 Landing on the site, we see this:
 
 ![Level 7](/imgs/lvl7/screenshot.png)
@@ -281,7 +283,7 @@ We can use this to out advantage to "escalate" the folder, and reach the desider
 `http://natas7.natas.labs.overthewire.org/index.php?page=../../../../etc/natas_webpass/natas8` <br>
 And there, our password is shown.
 
-### Level 8 <a name="level8"></a>
+## Level 8 <a name="level8"></a>
 Landing on the site, we see this:
 
 ![Level 8](/imgs/lvl8/screenshot.png)
@@ -349,7 +351,7 @@ We can now input it into the web app, and it'll give us the password for the nex
 </html>
 ```
 
-### Level 9 <a name="level9"></a>
+## Level 9 <a name="level9"></a>
 Landing on the site, we see this:
 
 ![Level 9](/imgs/lvl9/screenshot.png)
@@ -382,7 +384,7 @@ And so, we know we're in `/var/www/natas/natas9` and can now freely navigate aro
 Thus we need to get to `/etc/natas_webpass/natas10` and we'll have our password. Using the same structure as [Level 7](#level7), we can access it, and retrieve the secret hid in plain sight at the last line: <br>
 `--help && cat ../../../../etc/natas_webpass/natas10 # `
 
-### Level 10 <a name="level10"></a>
+## Level 10 <a name="level10"></a>
 Landing on the site, we see this:
 
 ![Level 10](/imgs/lvl10/screenshot.png)
@@ -435,7 +437,7 @@ Output:
 </html>
 ```
 
-### Level 11 <a name="level11"></a>
+## Level 11 <a name="level11"></a>
 Landing on the site, we see this:
 
 ![Level 11](/imgs/lvl11/screenshot.png)
@@ -513,8 +515,8 @@ echo base64_encode(json_encode($d));
 ?>
 ```
 What we get is the $\text{ciphertext}=$`eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=`. Using an online encoder, we can XOR the two and get the key used: <br>
-`HmYkBwozJw4WNyAAFyB1VUcqOE1JZjUIBis7ABdmbU1GIjEJAyIxTRg=` $⊕$ `eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=` $=$ `qw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jq` <br>
-Since XOR repeats the key for the size of the input, we have `key =  qw8J`. Editing the code for the encryption function, we can now generate a new cookie that has `"showpassword" => "yes"`:
+`HmYkBwozJw4WNyAAFyB1VUcqOE1JZjUIBis7ABdmbU1GIjEJAyIxTRg=` ⊕ `eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=` $=$ `qw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jq` <br>
+Since XOR repeats the key for the size of the input, we have `$key =  qw8J`. Editing the code for the encryption function, we can now generate a new cookie that has `"showpassword" => "yes"`:
 ```php
 <?php
 function xor_encrypt($in) {
@@ -557,6 +559,11 @@ The new cookie generated is `ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxF
 </html>
 ```
 
----
-[^1]: I'll be using FireFox, and some DevTools and shorcuts are different from one another, although they're mostly similar in functionality.
+## Level 12 <a name="level12"></a>
+Landing on the site, we see this:
+
+![Level 12](/imgs/lvl12/screenshot.png)
+
+[^1]: I'll be using FireFox, and DevTools and some shortcuts are different from one another, although they're mostly similar in functionality.
 [^2]: It's also written in the [main page](https://overthewire.org/wargames/natas/) of the web challenge, if one doesn't want to use hints.
+
