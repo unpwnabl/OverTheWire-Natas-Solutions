@@ -3,7 +3,7 @@
 
 # OverTheWire Natas Solutions
 
-![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-50%-yellow) ![Status](https://img.shields.io/badge/Status-In_production-green)
+![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-50%25-yellow) ![Status](https://img.shields.io/badge/Status-In_production-green)
 
 This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 34 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. To access each challenge, we need a:
 - Username: `natasX`, where X is the level number.
