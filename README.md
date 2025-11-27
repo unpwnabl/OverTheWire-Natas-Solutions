@@ -319,14 +319,14 @@ if(array_key_exists("submit", $_POST)) {
 }
 ?>
 ```
-Reading through it, we need to get a string such that when it's encoded by the function `encodeSecret`, it gives us the `$encodedSecret` value. Let's go through the function step-by-step:
+Reading through it, we need to get a string such that when it's encoded by the function `encodeSecret($secret)`, it gives us the `$encodedSecret` value. Let's go through the function step-by-step:
 ```php
 function encodeSecret($secret) {
-    return a binary-to-hexadecimal... 
+    return a binary-to-hexadecimal string... 
        ↓       ↓
     return bin2hex(strrev(base64_encode($secret)));
                       ↑               ↑   
-       ...Of the inverse string of a base64 encoded string
+       ...Of the inverse of a base64 encoded string
 }
 ```
 What the level requires us to do, is a little reverse engineering of the algorithm that encodes the secret. Now that we know what it does, using the inverse logic, we can reverse the process of encoding to get the original string it was used to encode the secret. <br> 
@@ -519,7 +519,7 @@ Indeed, there's some [XOR Cypher](https://en.wikipedia.org/wiki/XOR_cipher) on t
 
 Expecially when the message contains sensible information mixed in. It would be easy to reverse engineer the solution by decoding and XORing the data, but the `key` is hidden to us. We need to find what it is in order to pass the level. <br>
 We can exploit the fact that XOR is an associative operation: $\text{plaintext} ⊕ \text{key} = \text{ciphertext} \Rightarrow$ <br> $\text{ciphertext} ⊕ \text{key} = \text{plaintext} \land \text{ciphertext} ⊕ \text{plaintext} = \text{key}$. <br>
-We know the $\text{ciphertext}$ (which is our cookie), but we need the $\text{plaintext}$ in order to find the key. We can generate it by using the same code that's used to save data, naturally without the XOR function:
+We know the $\text{ciphertext}$ (which is our cookie), but we need the $\text{plaintext}$ in order to find the $\text{key}$. We can generate it by using the same code that's used to save data, naturally without the XOR function:
 ```php
 <?php
 $d = array( "showpassword" => "no", "bgcolor" => "#ffffff");
@@ -629,7 +629,7 @@ Choose a JPEG to upload (max 1KB):<br/>
 <?php } ?>
 ```
 Focusing too much on decrypting the random name generator is just wasting time. But if one looks closer, we see we have no restriction on what we can send as file. <br>
-This immediately rings a bell, as this is a simple [Web Shell attack](https://cwe.mitre.org/data/definitions/434.html) , where we upload a file with malicious code, that'll run on the server-side of the web app. Let's try it right away... We're going to create a file (since the server runs PHP commands, it's a PHP script) that'll print us something to make sure we can execute code:
+This immediately rings a bell, as this is a simple [Web Shell attack](https://cwe.mitre.org/data/definitions/434.html) , where we upload a file with malicious code, that'll run on the server-side of the web app. Let's try it right away... We're going to create a file (since the server runs PHP commands, it's a PHP script) that'll print us something to make sure we can execute code: <br>
 `shell.php`
 ```php
 <?php 
@@ -724,7 +724,7 @@ Choose a JPEG to upload (max 1KB):<br/>
 </form>  
 <?php } ?>`
 ```
-Scary is it sounds, `exif_imagetype($_FILES['uploadedfile']['tmp_name'])` (which is what checks if the file in input is a image or not) is actually pretty flawed. As its [manual](https://www.php.net/manual/en/function.exif-imagetype.php) says:
+Scary as it sounds, `exif_imagetype($_FILES['uploadedfile']['tmp_name'])` (which is what checks if the file in input is a image or not) is actually pretty flawed. As its [manual](https://www.php.net/manual/en/function.exif-imagetype.php) says:
 > exif_imagetype() reads the first bytes of an image and checks its signature.
 
 Let me rephrase that, so that it's clearer: 
@@ -862,8 +862,8 @@ Simply testing which possible name we have for the next challenge is easy: `nata
 ```sql
 natas16" AND BINARY substring(password,1,1) = 'a' -- 
 ```
-Let's break down what's happening: `natas16 "` is added to the query, `AND` concatenates commands, `BINARY` converts it to a binary value to get case-sensitivity (since in SQL `"HELLO" == "hello"` but `BINARY "HELLO" != "hello"`)and [`substring(string s, int beginning, int end)`](https://www.php.net/manual/en/function.substr.php) returns a section of the string `s` from `beginning` to `end`, and we compare it with a random character. If it does, it returns true, otherwise false. All and all, this payload simply means _search for the username "natas16" and if it has first character in the password an  "a"_. <br>
-Now, we could brute force the password doing by hand, changing character if it returns false, or append it if it's true, but knowing it's 32 characters long string of random characters and numbers, it takes quite a while. Let's write a script that'll automatically do it for us:
+Let's break down what's happening: `natas16 "` is added to the query, `AND` concatenates commands, `BINARY` converts it to a binary value to get case-sensitivity (since in SQL `"HELLO" == "hello"` but `BINARY "HELLO" != "hello"`) and [`substring(string s, int beginning, int end)`](https://www.php.net/manual/en/function.substr.php) returns a section of the string `s` from `beginning` to `end`, and we compare it with a random character. If it does, it returns true, otherwise false. All and all, this payload simply means _search for the username "natas16" and if it has first character in the password an  "a"_. <br>
+Now, we could brute force the password doing by hand, changing character if it returns false, or append it if it's true, but knowing it's 32 characters long string of random characters and numbers, it takes quite a while. Let's write a script that'll automatically do it for us: <br>
 [`blind-sql.py`](/scripts/lvl15/blind-sql.py)
 ```python
 import string       # For password generation
@@ -921,7 +921,7 @@ if($key != "") {
 }  
 ?>
 ```
-We can't use `/ [ ; | & ' " ] /`, which means we can't escape from `grep`. So to get the solution, we need to run code, inside code. <br>
+We can't use `/ [ ; | & ' " ] /`, which means we can't escape from `grep` since there are quotes, no matter what we try. So to get the solution, we need to run code, inside code. <br>
 We can do that thanks to [Command substitution](https://en.wikipedia.org/wiki/Command_substitution):
 > Command substitution is a facility that allows a command to be run and its output to be pasted back on the command line as arguments to another command.
 
@@ -930,8 +930,8 @@ It's oddly similar to the previous challenge, a [Blind OS Command Injection](htt
 - If the character doesn't exist, `grep -i "{}injection" dictionary.txt` does find "injection" in the dictionary.
 - If it does exist, it searches `grep -i "{character}injection" dictionary.txt`, which is an impossible word and thus doesn't display anything. 
 
-We can use this to our advantage and scan when we get a response or not. To get a single character from a file, we can use `grep` inside itself, and the payload will look something like: `$(grep {character} ../../../../etc/natas_webpass/natas17)injection`<br>
-We can repurpose the previous Python script to run on this site:
+We can use this to our advantage and scan when we get a response or not. To get a single character from a file, we can use `grep` inside itself, and the payload will look something like: `$(grep {character} /etc/natas_webpass/natas17)injection`<br>
+We can repurpose the previous Python script to run on this site: <br>
 [`blind-command.py`](/scripts/lvl16/blind-command.py)
 ```python
 import string       # For password generation
@@ -960,7 +960,7 @@ for c in valid_characters:
 
 print("Found following characters: " + present_characters)
 ```
-Doing so, we found all of the possible characters present in the password, but they aren't in order. To do so, we'd need to know where the password starts or ends. `grep` has a nice trick up its sleeve to do so: if we start a word with the character `^` (which represents the beginning of a line), we can reconstruct it from there. So, let's fix the code and get the password:
+Doing so, we found all of the possible characters present in the password, but they aren't in order. To do so, we'd need to know where the password starts or ends. `grep` has a nice trick up its sleeve to do so: if we start a word with the character `^` (which represents the beginning of a line), we can reconstruct it from there from the following payload = `$(grep ^{password} /etc/natas_webpass/natas17)injection`. So, let's fix the code and get the password: <br>
 [`better-blind-command.py`](/scripts/lvl16/better-blind-command.py)
 ```python
 import string       # For password generation
