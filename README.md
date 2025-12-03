@@ -1,4 +1,5 @@
 
+
 # OverTheWire Natas Solutions
 
 ![Code](https://img.shields.io/badge/Code-Markdown-orange?logo=markdown) ![Coverage](https://img.shields.io/badge/Coverage-80%25-lightgreen) ![Status](https://img.shields.io/badge/Status-In_production-green)
@@ -2179,6 +2180,17 @@ Password: <input name="password" type="password"><br>
 </form>  
 <?php } ?>
 ```
+We need to print the password for the next challenge from a MySQL database, which structure is given to us. There is input sanitization here, as the [`mysqli_real_escape_string()`](https://www.php.net/manual/en/mysqli.real-escape-string.php) says:
+> Escapes special characters in a string for use in an SQL statement, taking into account the current charset of the connection. The character set must be set either at the server level, or with the API function mysqli_set_charset() for it to affect mysqli_real_escape_string().
+
+Plus, it checks if the username has spaces with the [`trim()`](https://www.php.net/manual/it/function.trim.php) function, so we can't easily use a payload like `natas28' OR 1 = 1 # `. Seems like we're stuck, and can't access pre-existing data. <br>
+But if we look at how the table of `users` is created, we notice the `username` and `password` fields are characters of variable length up until 64 characters. Now, what would happen if we exceed them, by writing 65 characters? Luckily, MySQL has the [answer](https://dev.mysql.com/doc/refman/8.0/en/char.html?ref=learnhacking.io):
+> If strict SQL mode is not enabled and you assign a value to a CHAR or VARCHAR column that exceeds the column's maximum length, the value is truncated to fit and a warning is generated. For truncation of nonspace characters, you can cause an error to occur (rather than a warning) and suppress insertion of the value by using strict SQL mode.
+
+Basically, if we do exceed the limit, we can overflow custom data into the database, and retrieve sensible information. This is called a [Stack Overflow](https://cwe.mitre.org/data/definitions/121.html) in MySQL, which we can exploit to validate our access and view the password. <br>
+To do so, we need to create a long string, exactly $64 - lenght("natas28")$ characters to be inserted into the database, that will overflow. Doing so, we can add a random character, which will then be interpreted by the `createUser()` under the name `natas28` (due to MySQL not having unique identifiers), which we will access and be redirected by `validUser()` as the original account. Something like this: `natas28+++++++++++++++++++++++++++++++++++++++++++++++++++++++++A` (where `+` is an empty space in URL encoding). We need to add a random character at the end to avoid `trim()` removing the spaces and reducing the length. We can then choose a random password, and log in. We should see the solution:
+
+![Solution](/imgs/lvl27/solution.png) 
 
 ## Final Notes <a name="finalnotes"></a>
 This project is under the [GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html). Any use or distribution is completely free, unless edited. <br>
@@ -2194,4 +2206,5 @@ Main contributors: <br>
 [^3]: \- `convert` is part of [ImageMagick](https://github.com/ImageMagick/ImageMagick), necessary to have a smaller image (9x9 is a arbitrary dimension I chose). <br>
 \- `>>` redirect stdout to file. <br>
 \- Thanks to [Synactivy](https://www.synacktiv.com/publications/persistent-php-payloads-in-pngs-how-to-inject-php-code-in-an-image-and-keep-it-there)  for the explanation and some commands.
+
 
